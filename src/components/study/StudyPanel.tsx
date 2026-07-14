@@ -177,10 +177,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }, [])
 
   // Drawing State
-  const [drawingPaths, setDrawingPaths] = useState<Map<number, DrawingPath[]>>(new Map())
+  // CopiCopi stores the user's strokes on the B-side only. A-side remains a
+  // read-only reference, even when the PDF page is the same on both sides.
+  const [drawingPathsB, setDrawingPathsB] = useState<Map<number, DrawingPath[]>>(new Map())
   const EMPTY_PATHS: DrawingPath[] = useMemo(() => [], [])
-  const drawingPathsA = useMemo(() => drawingPaths.get(pageA) ?? EMPTY_PATHS, [drawingPaths, pageA, EMPTY_PATHS])
-  const drawingPathsB = useMemo(() => drawingPaths.get(pageB) ?? EMPTY_PATHS, [drawingPaths, pageB, EMPTY_PATHS])
+  const drawingPathsA = EMPTY_PATHS
+  const currentDrawingPathsB = useMemo(() => drawingPathsB.get(pageB) ?? EMPTY_PATHS, [drawingPathsB, pageB, EMPTY_PATHS])
 
   // Load Drawings Effect
   useEffect(() => {
@@ -199,7 +201,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         }
 
         if (newMap.size > 0) {
-          setDrawingPaths(newMap)
+          setDrawingPathsB(newMap)
         }
       } catch (e) {
         console.error('Failed to load drawings:', e)
@@ -643,8 +645,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
 
   // パス追加ハンドラ
-  const handlePathAdd = (page: number, newPath: DrawingPath) => {
-    setDrawingPaths(prev => {
+  const handlePathAddB = (page: number, newPath: DrawingPath) => {
+    setDrawingPathsB(prev => {
       const newMap = new Map(prev)
       const currentPaths = newMap.get(page) || []
       const newPaths = [...currentPaths, newPath]
@@ -675,8 +677,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }, [])
 
   // パス変更ハンドラ（Undo/Redo/Eraserなど）
-  const handlePathsChange = (page: number, newPaths: DrawingPath[]) => {
-    setDrawingPaths(prev => {
+  const handlePathsChangeB = (page: number, newPaths: DrawingPath[]) => {
+    setDrawingPathsB(prev => {
       const newMap = new Map(prev)
       if (newPaths.length === 0) {
         newMap.delete(page)
@@ -818,12 +820,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // クリア機能（現在のページのみ）
   const clearDrawing = () => {
-    setDrawingPaths(prev => {
+    setDrawingPathsB(prev => {
       const newMap = new Map(prev)
-      newMap.delete(pageA)
+      newMap.delete(pageB)
       return newMap
     })
-    saveDrawing(pdfId, pageA, JSON.stringify([]))
+    saveDrawing(pdfId, pageB, JSON.stringify([]))
     addStatusMessage('描画をクリアしました')
   }
 
@@ -833,7 +835,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       return
     }
 
-    setDrawingPaths(new Map())
+    setDrawingPathsB(new Map())
     // IndexedDBからも削除
     try {
       const record = await getPDFRecord(pdfId)
@@ -1087,8 +1089,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // Ctrl+Z Undo - アクティブなページの最後の描画を削除
   const handleUndo = () => {
-    const activePage = activeTab === 'A' ? pageA : pageB
-    setDrawingPaths(prev => {
+    const activePage = pageB
+    setDrawingPathsB(prev => {
       const newMap = new Map(prev)
       const currentPaths = newMap.get(activePage) || []
       if (currentPaths.length > 0) {
@@ -1232,7 +1234,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             pdfRecord={pdfRecord}
             pdfDoc={pdfDoc}
             pageNum={pageA}
-            tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
+            tool="none"
             color={penColor}
             size={penSize}
             eraserSize={eraserSize}
@@ -1240,9 +1242,9 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
             onPageChange={handlePageAChange}
-            onPathAdd={(path) => handlePathAdd(pageA, path)}
-            onPathsChange={(paths) => handlePathsChange(pageA, paths)}
-            onUndo={handleUndo}
+            onPathAdd={() => {}}
+            onPathsChange={() => {}}
+            onUndo={() => {}}
           />
         )}
 
@@ -1282,12 +1284,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             color={penColor}
             size={penSize}
             eraserSize={eraserSize}
-            drawingPaths={drawingPaths.get(pageB) || []}
+            drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
             onPageChange={handlePageBChange}
-            onPathAdd={(path) => handlePathAdd(pageB, path)}
-            onPathsChange={(paths) => handlePathsChange(pageB, paths)}
+            onPathAdd={(path) => handlePathAddB(pageB, path)}
+            onPathsChange={(paths) => handlePathsChangeB(pageB, paths)}
             onUndo={handleUndo}
           />
         )}
