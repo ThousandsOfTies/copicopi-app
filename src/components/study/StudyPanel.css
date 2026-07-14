@@ -228,6 +228,11 @@
   height: 100%;
 }
 
+/* CopiCopi B pane is a blank drawing surface, not a hidden PDF page. */
+.pane-b .canvas-wrapper {
+  background-color: #fff;
+}
+
 .canvas-layer {
   position: relative;
   transform-origin: 0 0;
