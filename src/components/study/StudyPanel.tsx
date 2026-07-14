@@ -66,6 +66,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // Layout State
   const [isSplitView, setIsSplitView] = useState(false)
+  const [isPanesReversed, setIsPanesReversed] = useState(false)
   const [activeTab, setActiveTab] = useState<'A' | 'B'>('A')
 
   // Split Ratio
@@ -322,9 +323,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
     const containerRect = splitContainer.getBoundingClientRect()
     const relativeX = touchX - containerRect.left
-    const splitPoint = containerRect.width * splitRatio
+    const leftPane: 'A' | 'B' = isPanesReversed ? 'B' : 'A'
+    const leftPaneRatio = isPanesReversed ? 1 - splitRatio : splitRatio
+    const splitPoint = containerRect.width * leftPaneRatio
 
-    return relativeX < splitPoint ? 'A' : 'B'
+    return relativeX < splitPoint ? leftPane : (leftPane === 'A' ? 'B' : 'A')
   }
 
   const getTargetPaneRef = (pane: 'A' | 'B') => {
@@ -986,13 +989,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // ステータスメッセージ
 
 
-  // 分割表示の切り替え / A面B面の入れ替え
+  // 分割表示の切り替え / A面B面の物理位置の入れ替え
   const toggleSplitView = () => {
     if (isSplitView) {
-      // 既にスプリット表示中ならA面とB面を入れ替え
-      const tempA = pageA
-      setPageA(pageB)
-      setPageB(tempA)
+      // 既にスプリット表示中なら左右の位置だけを入れ替える。
+      // A/Bのページ番号やB面の描画データは変更しない。
+      setIsPanesReversed(previous => !previous)
     } else {
       // スプリット表示をオンにする
       setIsSplitView(true)
@@ -1228,6 +1230,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             ref={paneARef}
             style={{
               flex: isSplitView ? `0 0 ${Math.round(splitRatio * 100)}%` : '1 1 auto',
+              order: isSplitView && isPanesReversed ? 3 : 1,
               height: '100%',
               overflow: 'hidden'
             }}
@@ -1259,6 +1262,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
               backgroundColor: isResizing ? '#3498db' : '#ccc',
               cursor: 'col-resize',
               flexShrink: 0,
+              order: 2,
               transition: 'background-color 0.2s',
               zIndex: 10000,
               position: 'relative'
@@ -1273,6 +1277,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             ref={paneBRef}
             style={{
               flex: isSplitView ? `0 0 ${Math.round((1 - splitRatio) * 100)}%` : '1 1 auto',
+              order: isSplitView && isPanesReversed ? 1 : 3,
               height: '100%',
               overflow: 'hidden'
             }}

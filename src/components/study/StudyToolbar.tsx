@@ -322,7 +322,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             {/* Split View Toggle (Moved to Tool Group) */}
                             <button
                                 onClick={toggleSplitView}
-                                title={isSplitView ? 'シングルビューに戻す' : '2画面表示 (Split View)'}
+                                title={isSplitView ? 'A/Bの位置を入れ替え' : '2画面表示 (Split View)'}
                                 className={isSplitView ? 'active' : ''}
                             >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
