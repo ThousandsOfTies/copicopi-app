@@ -1,0 +1,26 @@
+* 75c2a69 Restore Stripe features and backend config from stash
+*   8b97717 Merge dev branch - feat: replace with doridori-app base
+|\  
+| * 5abb5eb feat: replace with doridori-app base (AnswerPanel + panel stack architecture)
+| * 788c63a chore: remove all files (replace with doridori-app base)
+| | * e5b1273 On main: Stash PuzzleDnd test and Stripe updates
+| |/| 
+|/| | 
+| | * 5212877 index on main: 6e240e3 Remove Undo/Clear buttons from StudyToolbar
+| |/  
+|/|   
+* | 6e240e3 Remove Undo/Clear buttons from StudyToolbar
+* | 42ae448 特定商取引法ページにお問い合わせフォームURLを追加
+* | a8b5246 fix: ペン・消しゴムボタンアイコンをDoriDoriに合わせてreact-iconsに変更
+* | def0eba 特定商取引法: 氏名・住所を問い合わせ時開示に変更
+* | a022124 特定商取引法に基づく表記ページを追加 (tokushoho.html)
+* | dd125ea fix: SW autoUpdate+skipWaiting、resolve.dedupe追加
+* | e2c95ea fix: i18nReady.then()でレンダリングを待機
+* | cda96be refactor: i18n初期化をシンプル化（HttpBackend廃止に伴う）
+* | f5d02c6 fix: i18nReady Promiseで翻訳ロード完了を待ってからレンダリング
+* | 0b60508 fix: i18n初期化完了後にReactアプリをレンダリング（翻訳キーがそのまま表示される問題を修正）
+* | dbbe3f8 fix: SNS URLからSVGを除去、manage.htmlでidからブランドカラー取得
+* | 7ff399f revert: 採点ボタンを元の範囲選択フローに戻す（startGrading復元）
+* | e9e7419 fix: チェックボタンを直接採点フローに変更（範囲選択モードを廃止）
+|/  
+* ae6aa23 fix: 動的importのパスを@home-teacher/commonに修正

@@ -1,0 +1,287 @@
+diff --git a/deploy-cloud-run-staging.sh b/deploy-cloud-run-staging.sh
+index 47f4cf2..580aab4 100644
+--- a/deploy-cloud-run-staging.sh
++++ b/deploy-cloud-run-staging.sh
+@@ -1,2 +1,2 @@
+ #!/bin/bash
+-gcloud run deploy hometeacher-api-staging --source . --platform managed --region asia-northeast1 --allow-unauthenticated --min-instances 0 --max-instances 5 --memory 512Mi --cpu 1 --timeout 60s --set-env-vars "NODE_ENV=staging,GEMINI_MODEL=gemini-2.5-flash" --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,STRIPE_PRICE_ID=STRIPE_PRICE_ID:latest"
++gcloud run deploy hometeacher-api-staging --project hometeacher-api --source . --platform managed --region asia-northeast1 --allow-unauthenticated --min-instances 0 --max-instances 5 --memory 512Mi --cpu 1 --timeout 60s --set-env-vars "NODE_ENV=staging,GEMINI_MODEL=gemini-2.5-flash" --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,STRIPE_PRICE_ID=STRIPE_PRICE_ID:latest"
+diff --git a/deploy-cloud-run.sh b/deploy-cloud-run.sh
+index 5753b3a..d45dd36 100644
+--- a/deploy-cloud-run.sh
++++ b/deploy-cloud-run.sh
+@@ -1,2 +1,2 @@
+ #!/bin/bash
+-gcloud run deploy hometeacher-api --source . --platform managed --region asia-northeast1 --allow-unauthenticated --min-instances 0 --max-instances 10 --memory 512Mi --cpu 1 --timeout 60s --set-env-vars "NODE_ENV=production,GEMINI_MODEL=gemini-2.5-flash" --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,STRIPE_PRICE_ID=STRIPE_PRICE_ID:latest"
++gcloud run deploy hometeacher-api --project hometeacher-api --source . --platform managed --region asia-northeast1 --allow-unauthenticated --min-instances 0 --max-instances 10 --memory 512Mi --cpu 1 --timeout 60s --set-env-vars "NODE_ENV=production,GEMINI_MODEL=gemini-2.5-flash" --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,STRIPE_WEBHOOK_SECRET=STRIPE_WEBHOOK_SECRET:latest,STRIPE_PRICE_ID=STRIPE_PRICE_ID:latest"
+diff --git a/package.json b/package.json
+index e89e309..da35836 100644
+--- a/package.json
++++ b/package.json
+@@ -14,6 +14,8 @@
+     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+   },
+   "dependencies": {
++    "@dnd-kit/core": "^6.3.1",
++    "@dnd-kit/utilities": "^3.2.2",
+     "@google/generative-ai": "^0.24.1",
+     "@radix-ui/react-slider": "^1.3.6",
+     "@techstark/opencv-js": "^4.12.0-release.1",
+diff --git a/server/index.ts b/server/index.ts
+index a3009dc..1ea9e72 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -156,7 +156,6 @@ const AVAILABLE_MODELS = [
+   { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: '複雑な論理推論に強いハイエンドモデル' },
+   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: '速度と精度のバランスが良いモデル（推奨）' },
+   { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', description: '超高速・低コストだが複雑な推論は苦手なモデル' },
+-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: '安定版の旧高速モデル' },
+ ]
+ 
+ app.get('/api/models', (req, res) => {
+@@ -608,9 +607,15 @@ Output ONLY JSON. No introductory text.`;
+ app.post('/api/create-checkout-session', authenticateUser, async (req, res) => {
+   try {
+     const user = (req as any).user;
+-    // You would typically have a specific price ID from your Stripe Dashboard
+-    // Replace this with your actual Price ID
+     const priceId = process.env.STRIPE_PRICE_ID || 'price_1234567890';
++    const baseUrl = req.body?.baseUrl || req.headers.origin || 'http://localhost:5173';
++
++    // 既存のStripe顧客IDをFirebaseから取得
++    let customerId: string | undefined;
++    if (admin.apps.length) {
++      const userDoc = await admin.firestore().collection('users').doc(user.uid).get();
++      customerId = userDoc.data()?.stripeCustomerId;
++    }
+ 
+     const session = await stripe.checkout.sessions.create({
+       payment_method_types: ['card'],
+@@ -621,9 +626,10 @@ app.post('/api/create-checkout-session', authenticateUser, async (req, res) => {
+         },
+       ],
+       mode: 'subscription',
+-      success_url: `${req.headers.origin || 'http://localhost:5173'}/settings?success=true`,
+-      cancel_url: `${req.headers.origin || 'http://localhost:5173'}/settings?canceled=true`,
+-      client_reference_id: user.uid, // Tie the session to the Firebase User ID
++      success_url: `${baseUrl}/settings?success=true`,
++      cancel_url: `${baseUrl}/settings?canceled=true`,
++      client_reference_id: user.uid,
++      ...(customerId ? { customer: customerId } : { customer_email: user.email }),
+     });
+ 
+     res.json({ url: session.url });
+@@ -643,7 +649,7 @@ app.post('/api/webhooks/stripe', async (req, res) => {
+   let event;
+ 
+   try {
+-    if (!sig || !endpointSecret) throw new Error('Missing stripe signature or webhok secret');
++    if (!sig || !endpointSecret) throw new Error('Missing stripe signature or webhook secret');
+     // Important: req.body MUST be raw buffer here, so express.raw() is used above
+     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+   } catch (err: any) {
+@@ -666,13 +672,40 @@ app.post('/api/webhooks/stripe', async (req, res) => {
+           stripeSubscriptionId: session.subscription,
+         });
+       }
++    } else if (event.type === 'customer.subscription.updated') {
++      const subscription = event.data.object as Stripe.Subscription;
++      const customerId = subscription.customer as string;
++      const status = subscription.status;
++
++      if (admin.apps.length) {
++        const usersRef = admin.firestore().collection('users');
++        const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
++
++        if (!snapshot.empty) {
++          const docId = snapshot.docs[0].id;
++          if (status === 'active' || status === 'trialing') {
++            console.log(`✅ Subscription updated to ${status} for customer ${customerId}. Granting premium.`);
++            await usersRef.doc(docId).update({
++              isPremium: true,
++              stripeSubscriptionId: subscription.id,
++            });
++          } else if (status === 'canceled' || status === 'unpaid' || status === 'incomplete_expired') {
++            console.log(`🔴 Subscription updated to ${status} for customer ${customerId}. Removing premium.`);
++            await usersRef.doc(docId).update({
++              isPremium: false,
++              snsRewardMinutes: 60,
++              stripeSubscriptionId: admin.firestore.FieldValue.delete(),
++            });
++          }
++          console.log(`Subscription status ${status} processed for user ${docId}.`);
++        }
++      }
+     } else if (event.type === 'customer.subscription.deleted') {
+       const subscription = event.data.object as Stripe.Subscription;
+       const customerId = subscription.customer as string;
+ 
+       if (admin.apps.length) {
+         console.log(`🔴 Subscription deleted for customer ${customerId}. Removing premium status.`);
+-        // Note: You need to query the user by stripeCustomerId
+         const usersRef = admin.firestore().collection('users');
+         const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
+ 
+@@ -680,12 +713,30 @@ app.post('/api/webhooks/stripe', async (req, res) => {
+           const docId = snapshot.docs[0].id;
+           await usersRef.doc(docId).update({
+             isPremium: false,
+-            snsRewardMinutes: 60, // Reset to free tier default
++            snsRewardMinutes: 60,
+             stripeSubscriptionId: admin.firestore.FieldValue.delete(),
+           });
+           console.log(`User ${docId} downgraded successfully.`);
+         }
+       }
++    } else if (event.type === 'invoice.payment_succeeded') {
++      const invoice = event.data.object as Stripe.Invoice;
++      const customerId = invoice.customer as string;
++      const subscriptionId = (invoice as any).subscription as string | undefined;
++
++      if (subscriptionId && admin.apps.length) {
++        const usersRef = admin.firestore().collection('users');
++        const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
++
++        if (!snapshot.empty) {
++          const docId = snapshot.docs[0].id;
++          console.log(`💰 Invoice payment succeeded for customer ${customerId}. Ensuring premium status.`);
++          await usersRef.doc(docId).update({
++            isPremium: true,
++            stripeSubscriptionId: subscriptionId,
++          });
++        }
++      }
+     }
+     // Return a 200 response to acknowledge receipt of the event
+     res.send();
+diff --git a/src/App.tsx b/src/App.tsx
+index c74f5fb..b9f3fad 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -1,118 +1,16 @@
+-import { useState, useEffect } from 'react'
+-import { useRegisterSW } from 'virtual:pwa-register/react'
+-import AdminPanel from '@home-teacher/common/components/admin/AdminPanel'
+-import StudyPanel from './components/study/StudyPanel'
+-import PDFEditorPanel from '@home-teacher/common/components/admin/PDFEditorPanel'
+-import { PDFFileRecord, getPDFRecord, getAppSettings, saveAppSettings } from '@home-teacher/common/utils/indexedDB'
+-import { useAppInitializer } from '@home-teacher/common/hooks/useAppInitializer'
+-
+-type AppView = 'admin' | 'viewer' | 'editor'
++import PuzzleDnd from './components/Puzzle/PuzzleDnd'
+ 
+ function App() {
+-  const [currentView, setCurrentView] = useState<AppView>('admin')
+-  const [selectedPDF, setSelectedPDF] = useState<PDFFileRecord | null>(null)
+-
+-  // Initialization Hook
+-  const { isInitialized, initialView, initialPDF, settingsVersion } = useAppInitializer()
+-
+-  // Sync initial state from hook
+-  useEffect(() => {
+-    if (isInitialized) {
+-      if (initialView === 'viewer' && initialPDF) {
+-        setSelectedPDF(initialPDF)
+-        setCurrentView('viewer')
+-      }
+-    }
+-  }, [isInitialized, initialView, initialPDF])
+-
+-
+-  // PWA update handling
+-  const {
+-    needRefresh: [needRefresh, setNeedRefresh],
+-    updateServiceWorker,
+-  } = useRegisterSW({
+-    onRegistered(r) {
+-      console.log('SW Registered [v0.2.7]:', r)
+-      // 起動時に更新チェックを明示的に行う
+-      if (r) {
+-        // 定期チェック (10分ごと)
+-        setInterval(async () => {
+-          console.log('Checking for sw update...')
+-          try {
+-            await r.update()
+-          } catch (e) {
+-            console.error('SW update check failed:', e)
+-          }
+-        }, 10 * 60 * 1000)
+-
+-        // 初回チェック
+-        console.log('Running initial SW update check...')
+-        r.update().then(() => console.log('Initial SW update check completed')).catch(e => console.error('Initial SW update check failed:', e))
+-      }
+-    },
+-    onRegisterError(error) {
+-      console.log('SW registration error', error)
+-    },
+-  })
+-
+-  const handleSelectPDF = (record: PDFFileRecord) => {
+-    setSelectedPDF(record)
+-    setCurrentView('viewer')
+-  }
+-
+-  const handleEditPDF = (record: PDFFileRecord) => {
+-    setSelectedPDF(record)
+-    setCurrentView('editor')
+-  }
+-
+-  const handleBackToAdmin = () => {
+-    setCurrentView('admin')
+-    setSelectedPDF(null)
+-  }
+-
+-  const handleUpdate = () => {
+-    console.log('🔄 Updating Service Worker...')
+-    updateServiceWorker(true)
+-  }
+-
+-  if (!isInitialized) {
+-    return <div className="loading-screen" style={{
++  return (
++    <div style={{
++      width: '100vw',
++      height: '100vh',
+       display: 'flex',
+       justifyContent: 'center',
+       alignItems: 'center',
+-      height: '100vh',
+-      fontSize: '1.5rem',
+-      color: '#3498db'
+-    }}>Loading...</div>
+-  }
+-
+-  return (
+-    <div className="app">
+-      {currentView === 'admin' ? (
+-        <AdminPanel
+-          key={`admin-${settingsVersion}`}
+-          onSelectPDF={handleSelectPDF}
+-          onEditPDF={handleEditPDF}
+-          hasUpdate={needRefresh}
+-          onUpdate={handleUpdate}
+-        />
+-      ) : currentView === 'viewer' && selectedPDF ? (
+-        <StudyPanel
+-          key={`study-${settingsVersion}-${selectedPDF.id}`}
+-          pdfRecord={selectedPDF}
+-          pdfId={selectedPDF.id}
+-          onBack={handleBackToAdmin}
+-        />
+-      ) : currentView === 'editor' && selectedPDF ? (
+-        <PDFEditorPanel
+-          key={`editor-${settingsVersion}-${selectedPDF.id}`}
+-          pdfRecord={selectedPDF}
+-          pdfId={selectedPDF.id}
+-          onBack={handleBackToAdmin}
+-        />
+-      ) : (
+-        <div>No PDF selected</div>
+-      )}
++      background: '#f8fafc'
++    }}>
++      <PuzzleDnd />
+     </div>
+   )
+ }
