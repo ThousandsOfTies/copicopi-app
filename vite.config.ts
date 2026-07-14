@@ -13,17 +13,15 @@ const commitHash = execSync('git rev-parse --short HEAD', { cwd: __dirname }).to
 export default defineConfig(({ mode }) => {
   // 環境変数を読み込む
   const env = loadEnv(mode, process.cwd(), 'VITE_')
-  const isDiscuss = mode === 'discuss'
   const basePath = env.VITE_APP_BASE || (process.env.NODE_ENV === 'production'
-    ? (isDiscuss ? '/TutoTuto/discuss/' : '/TutoTuto/')
+    ? '/CopiCopi/'
     : '/')
-  const appName = env.VITE_APP_NAME || 'TutoTuto'
+  const appName = env.VITE_APP_NAME || 'CopiCopi'
   const themeColor = env.VITE_THEME_COLOR || '#3498db'
 
   console.log(`📦 Building ${appName} (mode: ${mode}, hash: ${commitHash})`)
 
-  // モード別のアイコンディレクトリ
-  const iconSource = isDiscuss ? 'public/icons/discuss' : 'public/icons/kids'
+  const iconSource = 'public/icons/kids'
 
   return {
     base: basePath,
@@ -46,7 +44,6 @@ export default defineConfig(({ mode }) => {
             dest: '',
             rename: 'pdf.worker.min.js'
           },
-          // モード別にアイコンをコピー
           {
             src: `${iconSource}/favicon.png`,
             dest: '',
@@ -58,11 +55,6 @@ export default defineConfig(({ mode }) => {
           },
           {
             src: `${iconSource}/app.png`,
-            dest: ''
-          },
-          // メタリポジトリのVERSIONSファイルをコピー
-          {
-            src: '../../VERSIONS',
             dest: ''
           }
         ]

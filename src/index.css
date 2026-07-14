@@ -1,35 +1,64 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  /* テキスト選択を無効化（全体に適用） */
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  /* タップ時のハイライトを無効化（iOS Safari） */
-  -webkit-tap-highlight-color: transparent;
+:root {
+  color: #172033;
+  background: #edf1f7;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f5f5;
-}
+* { box-sizing: border-box; }
 
-#root {
-  width: 100vw;
-  min-height: 100vh;
-  overflow-x: hidden;
-  overflow-y: auto;
-}
+body { margin: 0; min-width: 320px; }
 
-.app {
-  width: 100%;
-  height: 100%;
+button, input { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+
+.copicopi-app { min-height: 100vh; padding: 24px; }
+
+.app-header {
+  max-width: 1600px;
+  margin: 0 auto 20px;
   display: flex;
-  flex-direction: column;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.eyebrow { margin: 0 0 4px; color: #6d4aff; font-size: .75rem; font-weight: 800; letter-spacing: .12em; }
+h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1; letter-spacing: -.06em; }
+.subtitle { margin: 10px 0 0; color: #657084; }
+.local-notice { color: #58705e; background: #e5f5e9; border-radius: 999px; padding: 9px 13px; font-size: .82rem; }
+
+.workspace { max-width: 1600px; min-height: calc(100vh - 160px); margin: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+.pane { min-height: 620px; overflow: hidden; display: flex; flex-direction: column; background: #fff; border: 1px solid #dfe5ef; border-radius: 18px; box-shadow: 0 16px 40px rgba(36, 53, 82, .09); }
+.pane-header { min-height: 82px; padding: 16px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid #e8edf4; }
+.pane-label { color: #6d4aff; font-size: .75rem; font-weight: 800; letter-spacing: .1em; }
+h2 { margin: 3px 0 0; font-size: 1.1rem; }
+
+.primary-button, .drawing-actions button, .drawing-toolbar button, .page-controls button { border: 1px solid #d5dce9; border-radius: 8px; padding: 8px 11px; color: #293650; background: #fff; }
+.primary-button { border-color: #6d4aff; color: #fff; background: #6d4aff; font-weight: 700; }
+.drawing-actions { display: flex; gap: 8px; }
+
+.reference-content { min-height: 0; flex: 1; display: grid; place-items: center; padding: 20px; overflow: auto; background: #f8fafc; }
+.reference-image, .reference-pdf { max-width: 100%; max-height: 100%; display: block; box-shadow: 0 8px 24px rgba(38, 49, 71, .16); }
+.reference-image { object-fit: contain; }
+.empty-reference { max-width: 340px; display: grid; gap: 8px; color: #69778c; text-align: center; }
+.empty-reference strong { color: #273753; font-size: 1.05rem; }
+.reference-error { color: #b42318; }
+.reference-footer { min-height: 52px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #61708a; border-top: 1px solid #e8edf4; font-size: .83rem; }
+.page-controls { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+
+.drawing-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 12px; padding: 10px 16px; border-bottom: 1px solid #e8edf4; background: #fafbff; }
+.drawing-toolbar button.selected { color: #fff; border-color: #273753; background: #273753; }
+.drawing-toolbar label { display: inline-flex; align-items: center; gap: 6px; color: #59677e; font-size: .82rem; }
+.drawing-toolbar input[type="range"] { width: 90px; accent-color: #6d4aff; }
+.drawing-toolbar input[type="color"] { width: 28px; height: 28px; padding: 1px; border: 0; background: none; }
+.drawing-host { min-height: 420px; flex: 1; overflow: hidden; background-color: #fff; background-image: radial-gradient(#d5ddeb 1px, transparent 1px); background-size: 18px 18px; }
+.drawing-host canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
+
+@media (max-width: 900px) {
+  .copicopi-app { padding: 14px; }
+  .app-header { align-items: start; flex-direction: column; }
+  .workspace { grid-template-columns: 1fr; min-height: 0; }
+  .pane { min-height: 540px; }
 }
