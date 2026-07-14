@@ -26,7 +26,8 @@ export default defineConfig(({ mode }) => {
   return {
     base: basePath,
     define: {
-      'import.meta.env.VITE_APP_COMMIT_HASH': JSON.stringify(commitHash)
+      'import.meta.env.VITE_APP_COMMIT_HASH': JSON.stringify(commitHash),
+      'import.meta.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME || 'CopiCopi')
     },
     resolve: {
       alias: {
