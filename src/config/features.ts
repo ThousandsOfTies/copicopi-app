@@ -1,8 +1,8 @@
 /**
- * TutoTuto アプリ設定
+ * CopiCopi アプリ設定
  */
 
-export const APP_VERSION = import.meta.env.VITE_APP_VERSION || 'kids'
-export const APP_NAME = import.meta.env.VITE_APP_NAME || 'TutoTuto'
-export const APP_DESCRIPTION = import.meta.env.VITE_APP_DESCRIPTION || '子供向け学習支援アプリ'
-export const THEME_COLOR = import.meta.env.VITE_THEME_COLOR || '#3498db'
+export const APP_VERSION = 'copicopi'
+export const APP_NAME = import.meta.env.VITE_APP_NAME || 'CopiCopi'
+export const APP_DESCRIPTION = '見本を見ながら自由に模写する描画ワークスペース'
+export const THEME_COLOR = '#3498db'
