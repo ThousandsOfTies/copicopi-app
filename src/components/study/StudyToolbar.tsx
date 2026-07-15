@@ -6,6 +6,7 @@ import { BiEraser, BiSelection } from 'react-icons/bi';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
 export type BrushType = 'solid' | 'watercolor';
+export type StrokeStyle = 'pencil' | 'marker' | 'brush';
 
 export interface BreadcrumbItem {
     label: string;
@@ -46,6 +47,8 @@ interface StudyToolbarProps {
     setBrushType: (type: BrushType) => void;
     watercolorOpacity: number;
     setWatercolorOpacity: (opacity: number) => void;
+    strokeStyle: StrokeStyle;
+    setStrokeStyle: (style: StrokeStyle) => void;
 
     // Fill Tool
     isFillMode: boolean;
@@ -100,6 +103,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     setBrushType,
     watercolorOpacity,
     setWatercolorOpacity,
+    strokeStyle,
+    setStrokeStyle,
     isFillMode,
     toggleFillMode,
     isEraserMode,
@@ -262,6 +267,14 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     <div style={{ display: 'flex', gap: '4px' }}>
                                         <button type="button" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}>くっきり</button>
                                         <button type="button" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}>水彩</button>
+                                    </div>
+                                </div>
+                                <div className="popup-row">
+                                    <label>描き味:</label>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <button type="button" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}>えんぴつ</button>
+                                        <button type="button" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}>マーカー</button>
+                                        <button type="button" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}>筆</button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
