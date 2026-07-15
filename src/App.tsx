@@ -57,6 +57,7 @@ function App() {
           onEditPDF={handleEditPDF}
           hasUpdate={needRefresh}
           onUpdate={() => updateServiceWorker(true)}
+          studyTabLabel="Enjoy"
         />
       ) : currentView === 'viewer' && selectedPDF ? (
         <StudyPanel
