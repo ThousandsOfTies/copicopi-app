@@ -137,6 +137,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Tool State
   const [isDrawingMode, setIsDrawingMode] = useState(true)
   const [isEraserMode, setIsEraserMode] = useState(false)
+  const [isFillMode, setIsFillMode] = useState(false)
   const [isTextMode, setIsTextMode] = useState(false)
   const [penColor, setPenColor] = useState('#FF0000') // Updated to match bottom block default
   const [penSize, setPenSize] = useState(3)
@@ -804,6 +805,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     if (!isDrawingMode) {
       setIsDrawingMode(true)
       setIsEraserMode(false)
+      setIsFillMode(false)
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
@@ -816,10 +818,23 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     if (!isEraserMode) {
       setIsEraserMode(true)
       setIsDrawingMode(false)
+      setIsFillMode(false)
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
       addStatusMessage('🧹 消しゴムモード')
+    }
+  }
+
+  const toggleFillMode = () => {
+    if (!isFillMode) {
+      setIsFillMode(true)
+      setIsDrawingMode(false)
+      setIsEraserMode(false)
+      setIsTextMode(false)
+      setIsSelectionMode(false)
+      setSelectionRect(null)
+      addStatusMessage('🪣 塗りつぶしモード')
     }
   }
 
@@ -1288,7 +1303,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             pdfDoc={pdfDoc}
             pageNum={pageB}
             hidePdfBackground
-            tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
+            tool={isEraserMode ? 'eraser' : (isFillMode ? 'fill' : (isDrawingMode ? 'pen' : 'none'))}
             color={penColor}
             size={penSize}
             opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
@@ -1436,6 +1451,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           setBrushType={setBrushType}
           watercolorOpacity={watercolorOpacity}
           setWatercolorOpacity={setWatercolorOpacity}
+          isFillMode={isFillMode}
+          toggleFillMode={toggleFillMode}
           isEraserMode={isEraserMode}
           toggleEraserMode={toggleEraserMode}
           eraserSize={eraserSize}

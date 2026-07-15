@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ICON_SVG } from '../../constants/icons';
-import { FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2 } from 'react-icons/fi';
+import { FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2, FiDroplet } from 'react-icons/fi';
 import { BiEraser, BiSelection } from 'react-icons/bi';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
@@ -46,6 +46,10 @@ interface StudyToolbarProps {
     setBrushType: (type: BrushType) => void;
     watercolorOpacity: number;
     setWatercolorOpacity: (opacity: number) => void;
+
+    // Fill Tool
+    isFillMode: boolean;
+    toggleFillMode: () => void;
 
     // Eraser Tool
     isEraserMode: boolean;
@@ -96,6 +100,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     setBrushType,
     watercolorOpacity,
     setWatercolorOpacity,
+    isFillMode,
+    toggleFillMode,
     isEraserMode,
     toggleEraserMode,
     eraserSize,
@@ -284,6 +290,14 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             </div>
                         )}
                     </div>
+
+                    <button
+                        onClick={toggleFillMode}
+                        className={isFillMode ? 'active' : ''}
+                        title="ペンキ塗りつぶし"
+                    >
+                        <FiDroplet size={20} color={isFillMode ? penColor : 'currentColor'} />
+                    </button>
 
                     {/* 消しゴムツール */}
                     <div style={{ position: 'relative' }}>
