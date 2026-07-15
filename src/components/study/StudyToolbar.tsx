@@ -124,7 +124,13 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     const [showTextPopup, setShowTextPopup] = useState(false);
     const [showPenPopup, setShowPenPopup] = useState(false);
     const [showEraserPopup, setShowEraserPopup] = useState(false);
-    const colorPresets = ['#1f2937', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+    const colorPresets = [
+        '#000000', '#4b5563', '#9ca3af', '#ffffff', '#7f1d1d', '#dc2626', '#fb7185', '#fda4af',
+        '#7c2d12', '#ea580c', '#fb923c', '#fed7aa', '#854d0e', '#eab308', '#fde047', '#fef3c7',
+        '#14532d', '#16a34a', '#4ade80', '#bbf7d0', '#064e3b', '#14b8a6', '#5eead4', '#ccfbf1',
+        '#1e3a8a', '#2563eb', '#60a5fa', '#bfdbfe', '#4c1d95', '#7c3aed', '#a78bfa', '#ddd6fe',
+        '#831843', '#db2777', '#f472b6', '#fbcfe8', '#713f12', '#a16207', '#d6a75d', '#f5e6c8'
+    ];
 
     // Wrappers to toggle popups and modes
     const handleTextClick = () => {
@@ -263,7 +269,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     <input
                                         type="range"
                                         min="1"
-                                        max="10"
+                                        max="100"
                                         value={penSize}
                                         onChange={(e) => setPenSize(Number(e.target.value))}
                                         style={{ width: '100px' }}
