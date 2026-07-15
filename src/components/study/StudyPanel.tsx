@@ -8,7 +8,7 @@ import { savePDFRecord, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRe
 import { ICON_SVG } from '../../constants/icons'
 import { DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
-import { StudyToolbar, BreadcrumbItem } from './StudyToolbar'
+import { StudyToolbar, BreadcrumbItem, BrushType } from './StudyToolbar'
 import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
 import './StudyPanel.css'
 import { useGrading } from '../../hooks/study/useGrading'
@@ -140,6 +140,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [isTextMode, setIsTextMode] = useState(false)
   const [penColor, setPenColor] = useState('#FF0000') // Updated to match bottom block default
   const [penSize, setPenSize] = useState(3)
+  const [brushType, setBrushType] = useState<BrushType>('solid')
+  const [watercolorOpacity, setWatercolorOpacity] = useState(0.25)
   const [eraserSize, setEraserSize] = useState(50)
   // Popups
   const [showPenPopup, setShowPenPopup] = useState(false)
@@ -1240,6 +1242,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             tool="none"
             color={penColor}
             size={penSize}
+            opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
             eraserSize={eraserSize}
             drawingPaths={drawingPathsA}
             isCtrlPressed={isCtrlPressed}
@@ -1288,6 +1291,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
             color={penColor}
             size={penSize}
+            opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
             eraserSize={eraserSize}
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
@@ -1428,6 +1432,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           setPenColor={setPenColor}
           penSize={penSize}
           setPenSize={setPenSize}
+          brushType={brushType}
+          setBrushType={setBrushType}
+          watercolorOpacity={watercolorOpacity}
+          setWatercolorOpacity={setWatercolorOpacity}
           isEraserMode={isEraserMode}
           toggleEraserMode={toggleEraserMode}
           eraserSize={eraserSize}

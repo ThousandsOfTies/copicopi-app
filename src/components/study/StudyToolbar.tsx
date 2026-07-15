@@ -5,6 +5,7 @@ import { FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2
 import { BiEraser, BiSelection } from 'react-icons/bi';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
+export type BrushType = 'solid' | 'watercolor';
 
 export interface BreadcrumbItem {
     label: string;
@@ -41,6 +42,10 @@ interface StudyToolbarProps {
     setPenColor: (color: string) => void;
     penSize: number;
     setPenSize: (size: number) => void;
+    brushType: BrushType;
+    setBrushType: (type: BrushType) => void;
+    watercolorOpacity: number;
+    setWatercolorOpacity: (opacity: number) => void;
 
     // Eraser Tool
     isEraserMode: boolean;
@@ -87,6 +92,10 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     setPenColor,
     penSize,
     setPenSize,
+    brushType,
+    setBrushType,
+    watercolorOpacity,
+    setWatercolorOpacity,
     isEraserMode,
     toggleEraserMode,
     eraserSize,
@@ -109,6 +118,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     const [showTextPopup, setShowTextPopup] = useState(false);
     const [showPenPopup, setShowPenPopup] = useState(false);
     const [showEraserPopup, setShowEraserPopup] = useState(false);
+    const colorPresets = ['#1f2937', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
     // Wrappers to toggle popups and modes
     const handleTextClick = () => {
@@ -220,6 +230,28 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                         style={{ width: '40px', height: '30px', border: '1px solid #ccc', cursor: 'pointer' }}
                                     />
                                 </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 20px)', gap: '6px', padding: '2px 0 8px' }}>
+                                    {colorPresets.map((color) => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            aria-label={`${color} を選択`}
+                                            onClick={() => setPenColor(color)}
+                                            style={{
+                                                width: '20px', height: '20px', padding: 0, borderRadius: '50%',
+                                                background: color, border: penColor === color ? '2px solid #111' : '1px solid #d1d5db',
+                                                boxShadow: penColor === color ? '0 0 0 2px white' : 'none'
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                                <div className="popup-row">
+                                    <label>筆:</label>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                        <button type="button" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}>くっきり</button>
+                                        <button type="button" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}>水彩</button>
+                                    </div>
+                                </div>
                                 <div className="popup-row">
                                     <label>太さ:</label>
                                     <input
@@ -232,6 +264,23 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     />
                                     <span>{penSize}px</span>
                                 </div>
+                                {brushType === 'watercolor' && (
+                                    <div className="popup-row">
+                                        <label>濃さ:</label>
+                                        <input
+                                            type="range"
+                                            min="10"
+                                            max="70"
+                                            value={Math.round(watercolorOpacity * 100)}
+                                            onChange={(e) => setWatercolorOpacity(Number(e.target.value) / 100)}
+                                            style={{ width: '100px' }}
+                                        />
+                                        <span>{Math.round(watercolorOpacity * 100)}%</span>
+                                    </div>
+                                )}
+                                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.4 }}>
+                                    {brushType === 'solid' ? '重ねても色が変わらない不透明ブラシ' : '重ねるほど色が濃くなる半透明ブラシ'}
+                                </p>
                             </div>
                         )}
                     </div>
