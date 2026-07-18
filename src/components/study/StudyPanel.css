@@ -138,6 +138,106 @@
   background: #e8f5e9;
 }
 
+.teacher-grade-control {
+  position: relative;
+  display: flex;
+  height: 36px;
+}
+
+.toolbar .teacher-grade-control > button {
+  height: 36px;
+  border-color: #aeb8b2;
+  background: #f8faf9;
+  color: #33443a;
+  font-weight: 700;
+}
+
+.toolbar .teacher-grade-main {
+  width: 126px;
+  gap: 7px;
+  border-radius: 9px 0 0 9px;
+}
+
+.toolbar .teacher-grade-menu-button {
+  width: 32px;
+  min-width: 32px;
+  margin-left: -1px;
+  padding: 0;
+  border-radius: 0 9px 9px 0;
+}
+
+.toolbar .teacher-grade-control > button:hover:not(:disabled) {
+  position: relative;
+  z-index: 1;
+  background: #eef5f0;
+  border-color: #718b7a;
+}
+
+.teacher-kind { color: #36815b !important; }
+.teacher-balanced { color: #536a88 !important; }
+.teacher-strict { color: #9a612d !important; }
+
+.teacher-grade-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1200;
+  width: 252px;
+  padding: 6px;
+  border: 1px solid #d8ddd9;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 12px 30px rgba(30, 45, 36, 0.18);
+}
+
+.toolbar .teacher-grade-menu button {
+  width: 100%;
+  height: auto;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 32px 1fr 20px;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.toolbar .teacher-grade-menu button:hover,
+.toolbar .teacher-grade-menu button.selected {
+  background: #f1f5f2;
+}
+
+.teacher-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.teacher-option-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.teacher-option-copy strong {
+  color: #28352e;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.teacher-option-copy small {
+  color: #7b847f;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.teacher-option-check {
+  color: #38865f;
+  font-weight: 800;
+}
+
 /* アイコン自体の調整用 */
 .icon-scale-13 {
   transform: scale(1.2);
@@ -565,6 +665,63 @@
   color: #666;
   min-width: 35px;
   text-align: right;
+}
+
+.pen-settings-popup {
+  min-width: 226px;
+}
+
+.popup-row label.popup-icon-label {
+  min-width: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.pen-color-picker {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+.color-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 22px);
+  gap: 5px;
+  padding: 2px 0 10px 36px;
+}
+
+.toolbar button.color-swatch {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 3px;
+  transform: none;
+}
+
+.pen-option-group {
+  display: flex;
+  gap: 5px;
+}
+
+.pen-option-group button {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+}
+
+.pen-setting-hint {
+  margin: 4px 0 0 36px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 /* ページナビゲーション用スクロールバー */

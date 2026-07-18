@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useRef, useState } from 'react';
 import { ICON_SVG } from '../../constants/icons';
-import { FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2, FiDroplet } from 'react-icons/fi';
-import { BiEraser, BiSelection } from 'react-icons/bi';
+import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2, FiDroplet, FiSliders, FiTarget } from 'react-icons/fi';
+import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
+import { MdBalance } from 'react-icons/md';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
 export type BrushType = 'solid' | 'watercolor';
 export type StrokeStyle = 'pencil' | 'marker' | 'brush';
+export type TeacherMode = 'kind' | 'balanced' | 'strict';
 
 export interface BreadcrumbItem {
     label: string;
@@ -23,10 +24,11 @@ interface StudyToolbarProps {
     toggleActiveTab: () => void;
 
     // Grading
-    isSelectionMode: boolean;
     isGrading: boolean;
     startGrading: () => void;
-    cancelSelection: () => void;
+    showTeacherGrade: boolean;
+    teacherMode: TeacherMode;
+    setTeacherMode: (mode: TeacherMode) => void;
 
     // Text Tool
     isTextMode: boolean;
@@ -49,10 +51,6 @@ interface StudyToolbarProps {
     setWatercolorOpacity: (opacity: number) => void;
     strokeStyle: StrokeStyle;
     setStrokeStyle: (style: StrokeStyle) => void;
-
-    // Fill Tool
-    isFillMode: boolean;
-    toggleFillMode: () => void;
 
     // Eraser Tool
     isEraserMode: boolean;
@@ -83,10 +81,11 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     toggleSplitView,
     activeTab,
     toggleActiveTab,
-    isSelectionMode,
     isGrading,
     startGrading,
-    cancelSelection,
+    showTeacherGrade,
+    teacherMode,
+    setTeacherMode,
     isTextMode,
     toggleTextMode,
     textFontSize,
@@ -105,8 +104,6 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     setWatercolorOpacity,
     strokeStyle,
     setStrokeStyle,
-    isFillMode,
-    toggleFillMode,
     isEraserMode,
     toggleEraserMode,
     eraserSize,
@@ -123,12 +120,12 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     availableModels,
     defaultModelName,
 }) => {
-    const { t } = useTranslation();
-
     // Popups visibility state
     const [showTextPopup, setShowTextPopup] = useState(false);
     const [showPenPopup, setShowPenPopup] = useState(false);
     const [showEraserPopup, setShowEraserPopup] = useState(false);
+    const [showTeacherMenu, setShowTeacherMenu] = useState(false);
+    const teacherMenuRef = useRef<HTMLDivElement>(null);
     const colorPresets = [
         '#000000', '#4b5563', '#9ca3af', '#ffffff', '#7f1d1d', '#dc2626', '#fb7185', '#fda4af',
         '#7c2d12', '#ea580c', '#fb923c', '#fed7aa', '#854d0e', '#eab308', '#fde047', '#fef3c7',
@@ -136,6 +133,22 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
         '#1e3a8a', '#2563eb', '#60a5fa', '#bfdbfe', '#4c1d95', '#7c3aed', '#a78bfa', '#ddd6fe',
         '#831843', '#db2777', '#f472b6', '#fbcfe8', '#713f12', '#a16207', '#d6a75d', '#f5e6c8'
     ];
+
+    const teacherOptions: Array<{ mode: TeacherMode; label: string; description: string; icon: React.ReactNode }> = [
+        { mode: 'kind', label: 'KIND', description: 'Good points first', icon: <FiHeart /> },
+        { mode: 'balanced', label: 'BALANCED', description: 'Clear and practical', icon: <MdBalance /> },
+        { mode: 'strict', label: 'STRICT', description: 'Detailed and precise', icon: <FiTarget /> },
+    ];
+    const selectedTeacher = teacherOptions.find(option => option.mode === teacherMode) || teacherOptions[0];
+
+    useEffect(() => {
+        if (!showTeacherMenu) return;
+        const closeMenu = (event: MouseEvent) => {
+            if (!teacherMenuRef.current?.contains(event.target as Node)) setShowTeacherMenu(false);
+        };
+        document.addEventListener('mousedown', closeMenu);
+        return () => document.removeEventListener('mousedown', closeMenu);
+    }, [showTeacherMenu]);
 
     // Wrappers to toggle popups and modes
     const handleTextClick = () => {
@@ -237,25 +250,27 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
 
                         {/* ペン設定ポップアップ */}
                         {isDrawingMode && showPenPopup && (
-                            <div className="tool-popup">
+                            <div className="tool-popup pen-settings-popup">
                                 <div className="popup-row">
-                                    <label>色:</label>
+                                    <label className="popup-icon-label" title="色" aria-label="色"><BiPalette size={21} /></label>
                                     <input
                                         type="color"
+                                        aria-label="色を選択"
                                         value={penColor}
                                         onChange={(e) => setPenColor(e.target.value)}
-                                        style={{ width: '40px', height: '30px', border: '1px solid #ccc', cursor: 'pointer' }}
+                                        className="pen-color-picker"
                                     />
                                 </div>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 20px)', gap: '6px', padding: '2px 0 8px' }}>
+                                <div className="color-preset-grid">
                                     {colorPresets.map((color) => (
                                         <button
                                             key={color}
                                             type="button"
+                                            className="color-swatch"
                                             aria-label={`${color} を選択`}
+                                            title={color}
                                             onClick={() => setPenColor(color)}
                                             style={{
-                                                width: '20px', height: '20px', padding: 0, borderRadius: '50%',
                                                 background: color, border: penColor === color ? '2px solid #111' : '1px solid #d1d5db',
                                                 boxShadow: penColor === color ? '0 0 0 2px white' : 'none'
                                             }}
@@ -263,22 +278,22 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     ))}
                                 </div>
                                 <div className="popup-row">
-                                    <label>筆:</label>
-                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                        <button type="button" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}>くっきり</button>
-                                        <button type="button" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}>水彩</button>
+                                    <label className="popup-icon-label" title="質感" aria-label="質感"><FiDroplet size={19} /></label>
+                                    <div className="pen-option-group">
+                                        <button type="button" aria-label="くっきり" title="くっきり（不透明）" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} /></button>
+                                        <button type="button" aria-label="水彩" title="水彩（半透明）" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} /></button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
-                                    <label>描き味:</label>
-                                    <div style={{ display: 'flex', gap: '4px' }}>
-                                        <button type="button" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}>えんぴつ</button>
-                                        <button type="button" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}>マーカー</button>
-                                        <button type="button" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}>筆</button>
+                                    <label className="popup-icon-label" title="描き味" aria-label="描き味"><BiBrush size={21} /></label>
+                                    <div className="pen-option-group">
+                                        <button type="button" aria-label="えんぴつ" title="えんぴつ" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} /></button>
+                                        <button type="button" aria-label="マーカー" title="マーカー" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} /></button>
+                                        <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} /></button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
-                                    <label>太さ:</label>
+                                    <label className="popup-icon-label" title="太さ" aria-label="太さ"><FiSliders size={19} /></label>
                                     <input
                                         type="range"
                                         min="1"
@@ -291,7 +306,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                 </div>
                                 {brushType === 'watercolor' && (
                                     <div className="popup-row">
-                                        <label>濃さ:</label>
+                                        <label className="popup-icon-label" title="濃さ" aria-label="濃さ"><FiDroplet size={18} /></label>
                                         <input
                                             type="range"
                                             min="10"
@@ -303,20 +318,12 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                         <span>{Math.round(watercolorOpacity * 100)}%</span>
                                     </div>
                                 )}
-                                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '11px', lineHeight: 1.4 }}>
-                                    {brushType === 'solid' ? '重ねても色が変わらない不透明ブラシ' : '重ねるほど色が濃くなる半透明ブラシ'}
+                                <p className="pen-setting-hint">
+                                    {brushType === 'solid' ? '不透明' : '半透明（すべての描き味に適用）'}
                                 </p>
                             </div>
                         )}
                     </div>
-
-                    <button
-                        onClick={toggleFillMode}
-                        className={isFillMode ? 'active' : ''}
-                        title="ペンキ塗りつぶし"
-                    >
-                        <FiDroplet size={20} color={isFillMode ? penColor : 'currentColor'} />
-                    </button>
 
                     {/* 消しゴムツール */}
                     <div style={{ position: 'relative' }}>
@@ -482,20 +489,59 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                 {isGrading ? <FiLoader size={20} className="animate-spin" /> : <FiCheckCircle size={20} />}
                             </button>
                         </>
-                    ) : (
-                        /* PDF mode: range selection button */
+                    ) : showTeacherGrade ? (
                         <>
                             <div className="divider"></div>
-                            <button
-                                onClick={isSelectionMode ? cancelSelection : startGrading}
-                                className={isSelectionMode ? 'active' : ''}
-                                disabled={isGrading}
-                                title={isSelectionMode ? t('gradingConfirmation.cancel') : t('gradingConfirmation.gradeBySelection')}
-                            >
-                                {isGrading ? <FiLoader size={20} className="animate-spin" /> : <BiSelection size={20} className="icon-scale-13" />}
-                            </button>
+                            <div className="teacher-grade-control" ref={teacherMenuRef}>
+                                <button
+                                    type="button"
+                                    className={`teacher-grade-main teacher-${teacherMode}`}
+                                    onClick={startGrading}
+                                    disabled={isGrading || !isSplitView}
+                                    title={isSplitView ? `${selectedTeacher.label} teacher checks the current A/B view` : 'A/B表示で採点できます'}
+                                    aria-label={`${selectedTeacher.label}先生で採点`}
+                                >
+                                    {isGrading ? <FiLoader className="animate-spin" /> : selectedTeacher.icon}
+                                    <span>{isGrading ? 'CHECKING' : selectedTeacher.label}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`teacher-grade-menu-button teacher-${teacherMode}`}
+                                    onClick={() => setShowTeacherMenu(previous => !previous)}
+                                    disabled={isGrading}
+                                    title="先生を選ぶ"
+                                    aria-label="先生を選ぶ"
+                                    aria-expanded={showTeacherMenu}
+                                >
+                                    <FiChevronDown />
+                                </button>
+                                {showTeacherMenu && (
+                                    <div className="teacher-grade-menu" role="menu">
+                                        {teacherOptions.map(option => (
+                                            <button
+                                                key={option.mode}
+                                                type="button"
+                                                role="menuitemradio"
+                                                aria-checked={teacherMode === option.mode}
+                                                className={teacherMode === option.mode ? 'selected' : ''}
+                                                onClick={() => {
+                                                    setTeacherMode(option.mode);
+                                                    setShowTeacherMenu(false);
+                                                }}
+                                            >
+                                                <span className={`teacher-option-icon teacher-${option.mode}`}>{option.icon}</span>
+                                                <span className="teacher-option-copy">
+                                                    <strong>{option.label}</strong>
+                                                    <small>{option.description}</small>
+                                                </span>
+                                                {teacherMode === option.mode && <span className="teacher-option-check">✓</span>}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </>
-                    )}
+                    ) : null}
                 </>
             </div>
         </div>

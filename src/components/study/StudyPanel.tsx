@@ -3,12 +3,13 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { GradingResponseResult, getAvailableModels, ModelInfo } from '@home-teacher/common/services/api'
 import GradingResult from './GradingResult'
+import GradingSpread from './GradingSpread'
 import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
 import { savePDFRecord, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveDrawing, saveTextAnnotation } from '@home-teacher/common/utils/indexedDB'
 import { ICON_SVG } from '../../constants/icons'
 import { DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
-import { StudyToolbar, BreadcrumbItem, BrushType, StrokeStyle } from './StudyToolbar'
+import { StudyToolbar, BreadcrumbItem, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
 import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
 import './StudyPanel.css'
 import { useGrading } from '../../hooks/study/useGrading'
@@ -36,7 +37,17 @@ interface StudyPanelProps {
 type PanelData =
   | { type: 'pdf' }
   | { type: 'answer'; questionImage: string; source?: 'grading' }
-  | { type: 'grading'; result: GradingResponseResult; modelName: string | null; responseTime: number | null }
+  | {
+    type: 'grading'
+    id: string
+    capturedImage: string
+    teacherMode: TeacherMode
+    status: 'loading' | 'complete' | 'error'
+    result?: GradingResponseResult
+    error?: string
+    modelName: string | null
+    responseTime: number | null
+  }
 
 const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const { t, i18n } = useTranslation()
@@ -65,7 +76,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }
 
   // Layout State
-  const [isSplitView, setIsSplitView] = useState(false)
+  // CopiCopi は見本（A面）と描画面（B面）を並べて使うため、左右開きを初期表示にする。
+  const [isSplitView, setIsSplitView] = useState(true)
   const [isPanesReversed, setIsPanesReversed] = useState(false)
   const [activeTab, setActiveTab] = useState<'A' | 'B'>('A')
 
@@ -76,6 +88,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   })
   const [isResizing, setIsResizing] = useState(false)
   const splitContainerRef = useRef<HTMLDivElement>(null)
+  const gradingSplitContainerRef = useRef<HTMLDivElement>(null)
 
   // Page State
   const [pageA, setPageA] = useState(pdfRecord.lastPageNumberA || 1)
@@ -113,6 +126,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [selectedModel, setSelectedModel] = useState<string>('default')
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [defaultModelName, setDefaultModelName] = useState<string>('Gemini 2.0 Flash')
+  const [teacherMode, setTeacherModeState] = useState<TeacherMode>(() => {
+    const saved = localStorage.getItem('copicopiTeacherMode')
+    return saved === 'balanced' || saved === 'strict' ? saved : 'kind'
+  })
+
+  const setTeacherMode = (mode: TeacherMode) => {
+    setTeacherModeState(mode)
+    localStorage.setItem('copicopiTeacherMode', mode)
+  }
 
   useEffect(() => {
     getAvailableModels()
@@ -137,7 +159,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Tool State
   const [isDrawingMode, setIsDrawingMode] = useState(true)
   const [isEraserMode, setIsEraserMode] = useState(false)
-  const [isFillMode, setIsFillMode] = useState(false)
   const [isTextMode, setIsTextMode] = useState(false)
   const [penColor, setPenColor] = useState('#FF0000') // Updated to match bottom block default
   const [penSize, setPenSize] = useState(3)
@@ -261,15 +282,21 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   const getPanelLabel = (panel: PanelData): string => {
     switch (panel.type) {
-      case 'pdf': return 'PDF'
+      case 'pdf': return '練習'
       case 'answer': return panel.source === 'grading' ? '質問記入' : '解答記入'
-      case 'grading': return '採点結果'
+      case 'grading': return panel.status === 'loading' ? '採点中' : '採点結果'
     }
   }
 
   const pushPanel = (panel: PanelData) => {
     setPanelStack(prev => [...prev.slice(0, activePanelIndex + 1), panel])
     setActivePanelIndex(prev => prev + 1)
+  }
+
+  const updateGradingPanel = (id: string, update: Partial<Extract<PanelData, { type: 'grading' }>>) => {
+    setPanelStack(prev => prev.map(panel =>
+      panel.type === 'grading' && panel.id === id ? { ...panel, ...update } : panel
+    ))
   }
 
   const handleSelectionStart = (e: React.MouseEvent) => {
@@ -485,9 +512,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     try {
       const capturedImage = await captureSelectionArea(selectionRect)
       if (capturedImage) {
-        pushPanel({ type: 'answer', questionImage: capturedImage })
         setIsSelectionMode(false)
         setSelectionRect(null)
+        // A面とB面を含む範囲キャプチャー1枚を、そのまま模写評価へ送る。
+        await confirmAndGrade(capturedImage)
       } else {
         addStatusMessage("❌ 画像のキャプチャに失敗しました")
         setSelectionRect(null)
@@ -599,6 +627,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     tempCanvas.height = rect.height
     const ctx = tempCanvas.getContext('2d')
     if (!ctx) return null
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
 
     // ペインからキャプチャするヘルパー
     const captureFromPane = (paneRef: React.RefObject<PDFPaneHandle>, paneClassName: string) => {
@@ -617,10 +647,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       const selectionScreenW = rect.width
       const selectionScreenH = rect.height
 
-      const intersectX = Math.max(selectionScreenX, canvasRect.left)
-      const intersectY = Math.max(selectionScreenY, canvasRect.top)
-      const intersectW = Math.min(selectionScreenX + selectionScreenW, canvasRect.right) - intersectX
-      const intersectH = Math.min(selectionScreenY + selectionScreenH, canvasRect.bottom) - intersectY
+      // PDFキャンバスはペイン外にも実寸で存在し、CSSのoverflowで見切れている。
+      // 選択範囲とキャンバスだけで交差を取ると、その非表示部分が隣の面へ混入するため、
+      // 必ずペインの表示境界でもクリップする。
+      const intersectX = Math.max(selectionScreenX, canvasRect.left, paneRect.left)
+      const intersectY = Math.max(selectionScreenY, canvasRect.top, paneRect.top)
+      const intersectRight = Math.min(selectionScreenX + selectionScreenW, canvasRect.right, paneRect.right)
+      const intersectBottom = Math.min(selectionScreenY + selectionScreenH, canvasRect.bottom, paneRect.bottom)
+      const intersectW = intersectRight - intersectX
+      const intersectH = intersectBottom - intersectY
 
       if (intersectW <= 0 || intersectH <= 0) return
 
@@ -698,9 +733,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }
 
   // 採点確定ハンドラ
-  const confirmAndGrade = async (compositeImage: string) => {
+  const confirmAndGrade = async (compositeImage: string, selectedTeacherMode: TeacherMode = teacherMode) => {
     setIsGrading(true)
     setGradingError(null)
+    let gradingPanelId: string | null = null
 
     try {
       const croppedImageData = compositeImage
@@ -725,14 +761,28 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         }
       })
 
+      gradingPanelId = `grading-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      pushPanel({
+        type: 'grading',
+        id: gradingPanelId,
+        capturedImage: croppedImageData,
+        teacherMode: selectedTeacherMode,
+        status: 'loading',
+        modelName: null,
+        responseTime: null
+      })
+
       // APIに送信（簡素化：切り抜き画像のみ）
-      addStatusMessage('🎯 AI採点中...')
+      addStatusMessage('🎯 先生が作品を見ています...')
       const startTime = Date.now()
       const { gradeWork } = await import('@home-teacher/common/services/api')
       const response = await gradeWork(
         croppedImageData,
         selectedModel !== 'default' ? selectedModel : undefined,
-        i18n.language
+        i18n.language,
+        undefined,
+        selectedTeacherMode,
+        isPanesReversed
       )
       const endTime = Date.now()
       const clientResponseTimeSeconds = parseFloat(((endTime - startTime) / 1000).toFixed(1))
@@ -752,13 +802,13 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         problems = numericKeys.map(k => nested[k])
       }
 
-      pushPanel({
-        type: 'grading',
+      updateGradingPanel(gradingPanelId, {
+        status: 'complete',
         result: { ...response.result, problems },
         modelName: response.modelName ?? null,
         responseTime: response.responseTime ?? clientResponseTimeSeconds
       })
-      addStatusMessage(`✅ 採点完了(${problems.length}問)`)
+      addStatusMessage('✅ 採点が終わりました')
 
       // 採点履歴を保存
       if (response.result.problems?.length) {
@@ -784,7 +834,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
     } catch (e) {
       console.error(e)
-      setGradingError(e instanceof Error ? e.message : String(e))
+      const message = e instanceof Error ? e.message : String(e)
+      setGradingError(message)
+      if (gradingPanelId) {
+        updateGradingPanel(gradingPanelId, { status: 'error', error: message })
+      }
     } finally {
       setIsGrading(false)
     }
@@ -793,7 +847,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Grade handler called from toolbar
   const handleGradeFromToolbar = async () => {
     const compositeImage = await answerPanelRef.current?.getCompositeImage()
-    if (compositeImage) await confirmAndGrade(compositeImage)
+    if (compositeImage) await confirmAndGrade(compositeImage, teacherMode)
   }
 
   // プレビューのキャンセル
@@ -806,7 +860,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     if (!isDrawingMode) {
       setIsDrawingMode(true)
       setIsEraserMode(false)
-      setIsFillMode(false)
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
@@ -819,23 +872,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     if (!isEraserMode) {
       setIsEraserMode(true)
       setIsDrawingMode(false)
-      setIsFillMode(false)
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
       addStatusMessage('🧹 消しゴムモード')
-    }
-  }
-
-  const toggleFillMode = () => {
-    if (!isFillMode) {
-      setIsFillMode(true)
-      setIsDrawingMode(false)
-      setIsEraserMode(false)
-      setIsTextMode(false)
-      setIsSelectionMode(false)
-      setSelectionRect(null)
-      addStatusMessage('🪣 塗りつぶしモード')
     }
   }
 
@@ -871,27 +911,27 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
   }
 
-  // 採点開始（範囲選択モードに切り替え）
-  const startGrading = () => {
+  // 現在画面に見えているA/Bを、その位置・倍率のまま採点する。
+  const startGrading = async () => {
     const currentPanel = panelStack[activePanelIndex]
-    if (currentPanel?.type === 'grading') {
-      // 採点結果パネル上での範囲選択（html2canvasでキャプチャ）
-      setIsGradingCaptureMode(true)
-      setGradingCaptureRect(null)
-      addStatusMessage('📐 キャプチャする範囲を選択してください')
+    if (currentPanel?.type !== 'pdf' || !containerRef.current) return
+    if (!isSplitView) {
+      addStatusMessage('A/B表示で採点できます')
       return
     }
-    // PDFパネルが表示されていない場合は先にPDFパネルへ移動
-    const pdfIndex = panelStack.findIndex(p => p.type === 'pdf')
-    if (pdfIndex >= 0 && activePanelIndex !== pdfIndex) {
-      setActivePanelIndex(pdfIndex)
+
+    const rect = containerRef.current.getBoundingClientRect()
+    const capturedImage = await captureSelectionArea({
+      x: 0,
+      y: 0,
+      width: Math.round(rect.width),
+      height: Math.round(rect.height)
+    })
+    if (!capturedImage) {
+      setGradingError('現在のA/B画面をキャプチャーできませんでした。')
+      return
     }
-    setIsSelectionMode(true)
-    setIsDrawingMode(false)
-    setIsEraserMode(false)
-    setIsTextMode(false)
-    setSelectionRect(null)
-    addStatusMessage('📐 採点範囲を選択してください')
+    await confirmAndGrade(capturedImage, teacherMode)
   }
 
   // テキストモードのトグル
@@ -1064,9 +1104,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   useEffect(() => {
     if (!isResizing) return
 
+    const getResizeContainer = () => {
+      const panel = panelStack[activePanelIndex]
+      return panel?.type === 'grading' ? gradingSplitContainerRef.current : splitContainerRef.current
+    }
+
     const handleMove = (clientX: number) => {
-      if (!splitContainerRef.current) return
-      const rect = splitContainerRef.current.getBoundingClientRect()
+      const container = getResizeContainer()
+      if (!container) return
+      const rect = container.getBoundingClientRect()
       const newRatio = (clientX - rect.left) / rect.width
       const clampedRatio = Math.max(0.2, Math.min(0.8, newRatio))
       setSplitRatio(clampedRatio)
@@ -1083,8 +1129,9 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
 
     const handleEnd = (clientX: number) => {
-      if (!splitContainerRef.current) return
-      const rect = splitContainerRef.current.getBoundingClientRect()
+      const container = getResizeContainer()
+      if (!container) return
+      const rect = container.getBoundingClientRect()
       const finalRatio = (clientX - rect.left) / rect.width
       const clampedRatio = Math.max(0.2, Math.min(0.8, finalRatio))
       localStorage.setItem('splitRatio', clampedRatio.toString())
@@ -1105,7 +1152,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       document.removeEventListener('touchmove', handleTouchMove)
       document.removeEventListener('touchend', handleTouchEnd)
     }
-  }, [isResizing])
+  }, [isResizing, activePanelIndex, panelStack])
 
   // Ctrl+Z Undo - アクティブなページの最後の描画を削除
   const handleUndo = () => {
@@ -1305,7 +1352,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             pdfDoc={pdfDoc}
             pageNum={pageB}
             hidePdfBackground
-            tool={isEraserMode ? 'eraser' : (isFillMode ? 'fill' : (isDrawingMode ? 'pen' : 'none'))}
+            tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
             color={penColor}
             size={penSize}
             opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
@@ -1434,10 +1481,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
               setActiveTab(prev => prev === 'A' ? 'B' : 'A')
             }
           }}
-          isSelectionMode={isSelectionMode || isGradingCaptureMode}
           isGrading={isGrading}
           startGrading={startGrading}
-          cancelSelection={isGradingCaptureMode ? cancelGradingCapture : handleCancelSelection}
+          showTeacherGrade={activePanel?.type === 'pdf'}
+          teacherMode={teacherMode}
+          setTeacherMode={setTeacherMode}
           isTextMode={isTextMode}
           toggleTextMode={toggleTextMode}
           textFontSize={textFontSize}
@@ -1456,8 +1504,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           setWatercolorOpacity={setWatercolorOpacity}
           strokeStyle={strokeStyle}
           setStrokeStyle={setStrokeStyle}
-          isFillMode={isFillMode}
-          toggleFillMode={toggleFillMode}
           isEraserMode={isEraserMode}
           toggleEraserMode={toggleEraserMode}
           eraserSize={eraserSize}
@@ -1504,13 +1550,26 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   ref={i === activePanelIndex ? gradingPanelRef : undefined}
                   style={{ position: 'relative', width: '100%', height: '100%' }}
                 >
-                  <GradingResult
-                    result={panel.result}
-                    snsLinks={snsLinks}
-                    timeLimitMinutes={snsTimeLimit}
-                    modelName={panel.modelName}
-                    responseTime={panel.responseTime}
-                    pdfId={pdfId}
+                  <GradingSpread
+                    capturedImage={panel.capturedImage}
+                    resultKey={`${panel.id}-${panel.status}`}
+                    isSplitView={isSplitView}
+                    activeTab={activeTab}
+                    isPanesReversed={isPanesReversed}
+                    splitRatio={splitRatio}
+                    isResizing={isResizing}
+                    onResizeStart={handleResizeStart}
+                    splitContainerRef={gradingSplitContainerRef}
+                    resultSheet={(
+                      <GradingResult
+                        result={panel.result}
+                        isLoading={panel.status === 'loading'}
+                        error={panel.error}
+                        teacherMode={panel.teacherMode}
+                        modelName={panel.modelName}
+                        responseTime={panel.responseTime}
+                      />
+                    )}
                   />
                   {isGradingCaptureMode && i === activePanelIndex && (
                     <div
