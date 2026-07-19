@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ICON_SVG } from '../../constants/icons';
-import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock } from 'react-icons/fi';
+import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
 
@@ -59,6 +59,13 @@ interface StudyToolbarProps {
     eraserSize: number;
     setEraserSize: (size: number) => void;
 
+    // Layers
+    showLayerControls: boolean;
+    isLayerPanelOpen: boolean;
+    toggleLayerPanel: () => void;
+    activeLayerName: string;
+    layerCount: number;
+
     // Actions
     onUndo: () => void;
     onClear: () => void;
@@ -110,6 +117,11 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     toggleEraserMode,
     eraserSize,
     setEraserSize,
+    showLayerControls,
+    isLayerPanelOpen,
+    toggleLayerPanel,
+    activeLayerName,
+    layerCount,
     onUndo,
     onClear,
     onClearAll,
@@ -392,6 +404,20 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {showLayerControls && (
+                        <button
+                            type="button"
+                            className={`layer-toolbar-button ${isLayerPanelOpen ? 'active' : ''}`}
+                            onClick={toggleLayerPanel}
+                            title={`レイヤー：${activeLayerName}`}
+                            aria-label={`レイヤーを開く。現在は${activeLayerName}`}
+                            aria-expanded={isLayerPanelOpen}
+                        >
+                            <FiLayers size={20} />
+                            <span className="layer-count-badge">{layerCount}</span>
+                        </button>
+                    )}
 
                     {!onGrade && (
                         <>

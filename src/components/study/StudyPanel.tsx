@@ -15,7 +15,9 @@ import './StudyPanel.css'
 import { useGrading } from '../../hooks/study/useGrading'
 import { compressImage } from '@home-teacher/common/utils/image'
 import { useAuth } from '@home-teacher/common/contexts/AuthContext'
-import { FiDroplet } from 'react-icons/fi'
+import { FiChevronDown, FiChevronUp, FiDroplet, FiEye, FiEyeOff, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
+import { createDefaultLayer, DrawingLayer, MAX_DRAWING_LAYERS, normalizeLayeredDrawing, serializeLayeredDrawing, sortPathsByLayer } from './layers'
+import { LayerThumbnail } from './LayerThumbnail'
 
 // テキストアノテーションの型定義
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr'
@@ -220,9 +222,23 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // CopiCopi stores the user's strokes on the B-side only. A-side remains a
   // read-only reference, even when the PDF page is the same on both sides.
   const [drawingPathsB, setDrawingPathsB] = useState<Map<number, DrawingPath[]>>(new Map())
+  const [drawingLayersB, setDrawingLayersB] = useState<Map<number, DrawingLayer[]>>(new Map())
+  const [activeLayerIdsB, setActiveLayerIdsB] = useState<Map<number, string>>(new Map())
+  const [showLayerPanel, setShowLayerPanel] = useState(false)
+  const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null)
   const EMPTY_PATHS: DrawingPath[] = useMemo(() => [], [])
+  const DEFAULT_LAYERS = useMemo(() => [createDefaultLayer()], [])
   const drawingPathsA = EMPTY_PATHS
-  const currentDrawingPathsB = useMemo(() => drawingPathsB.get(pageB) ?? EMPTY_PATHS, [drawingPathsB, pageB, EMPTY_PATHS])
+  const currentLayersB = drawingLayersB.get(pageB) ?? DEFAULT_LAYERS
+  const activeLayerIdB = activeLayerIdsB.get(pageB) ?? currentLayersB[currentLayersB.length - 1].id
+  const currentAllDrawingPathsB = drawingPathsB.get(pageB) ?? EMPTY_PATHS
+  const currentDrawingPathsB = useMemo(() => {
+    const visibleLayerIds = new Set(currentLayersB.filter(layer => layer.visible).map(layer => layer.id))
+    return sortPathsByLayer(
+      currentAllDrawingPathsB.filter(path => visibleLayerIds.has(path.layerId || currentLayersB[0].id)),
+      currentLayersB,
+    )
+  }, [currentAllDrawingPathsB, currentLayersB])
 
   // Load Drawings Effect
   useEffect(() => {
@@ -232,17 +248,21 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         if (!record?.drawings) return
 
         const newMap = new Map<number, DrawingPath[]>()
+        const newLayersMap = new Map<number, DrawingLayer[]>()
+        const newActiveLayerMap = new Map<number, string>()
         for (const [pageStr, pathsJson] of Object.entries(record.drawings)) {
           const page = parseInt(pageStr, 10)
-          const paths = JSON.parse(pathsJson) as DrawingPath[]
+          const { layers, paths } = normalizeLayeredDrawing(pathsJson)
+          newLayersMap.set(page, layers)
+          newActiveLayerMap.set(page, layers[layers.length - 1].id)
           if (paths.length > 0) {
             newMap.set(page, paths)
           }
         }
 
-        if (newMap.size > 0) {
-          setDrawingPathsB(newMap)
-        }
+        setDrawingPathsB(newMap)
+        setDrawingLayersB(newLayersMap)
+        setActiveLayerIdsB(newActiveLayerMap)
       } catch (e) {
         console.error('Failed to load drawings:', e)
       }
@@ -702,14 +722,20 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // パス追加ハンドラ
   const handlePathAddB = (page: number, newPath: DrawingPath) => {
+    const storedLayers = drawingLayersB.get(page) ?? DEFAULT_LAYERS
+    const activeLayerId = activeLayerIdsB.get(page) ?? storedLayers[storedLayers.length - 1].id
+    const layers = storedLayers.map(layer => layer.id === activeLayerId ? { ...layer, visible: true } : layer)
+    if (layers.some((layer, index) => layer.visible !== storedLayers[index].visible)) {
+      setDrawingLayersB(previous => new Map(previous).set(page, layers))
+    }
     setDrawingPathsB(prev => {
       const newMap = new Map(prev)
       const currentPaths = newMap.get(page) || []
-      const newPaths = [...currentPaths, newPath]
+      const newPaths = sortPathsByLayer([...currentPaths, { ...newPath, layerId: activeLayerId }], layers)
       newMap.set(page, newPaths)
 
       // Save to DB
-      saveDrawing(pdfId, page, JSON.stringify(newPaths))
+      saveDrawing(pdfId, page, serializeLayeredDrawing(layers, newPaths))
 
       return newMap
     })
@@ -734,16 +760,99 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // パス変更ハンドラ（Undo/Redo/Eraserなど）
   const handlePathsChangeB = (page: number, newPaths: DrawingPath[]) => {
+    const layers = drawingLayersB.get(page) ?? DEFAULT_LAYERS
+    const visibleLayerIds = new Set(layers.filter(layer => layer.visible).map(layer => layer.id))
     setDrawingPathsB(prev => {
       const newMap = new Map(prev)
-      if (newPaths.length === 0) {
+      const currentPaths = newMap.get(page) || []
+      const hiddenPaths = currentPaths.filter(path => !visibleLayerIds.has(path.layerId || layers[0].id))
+      const mergedPaths = sortPathsByLayer([...hiddenPaths, ...newPaths], layers)
+      if (mergedPaths.length === 0) {
         newMap.delete(page)
       } else {
-        newMap.set(page, newPaths)
+        newMap.set(page, mergedPaths)
       }
+      saveDrawing(pdfId, page, serializeLayeredDrawing(layers, mergedPaths))
       return newMap
     })
-    saveDrawing(pdfId, page, JSON.stringify(newPaths))
+  }
+
+  const updateCurrentLayerState = (layers: DrawingLayer[], paths: DrawingPath[] = currentAllDrawingPathsB) => {
+    const sortedPaths = sortPathsByLayer(paths, layers)
+    setDrawingLayersB(previous => new Map(previous).set(pageB, layers))
+    setDrawingPathsB(previous => {
+      const next = new Map(previous)
+      if (sortedPaths.length > 0) next.set(pageB, sortedPaths)
+      else next.delete(pageB)
+      return next
+    })
+    saveDrawing(pdfId, pageB, serializeLayeredDrawing(layers, sortedPaths))
+  }
+
+  const addDrawingLayer = () => {
+    if (currentLayersB.length >= MAX_DRAWING_LAYERS) {
+      addStatusMessage(`レイヤーは${MAX_DRAWING_LAYERS}枚までです`)
+      return
+    }
+    const layer: DrawingLayer = {
+      id: `layer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: `レイヤー${currentLayersB.length + 1}`,
+      visible: true,
+    }
+    const nextLayers = [...currentLayersB, layer]
+    updateCurrentLayerState(nextLayers)
+    setActiveLayerIdsB(previous => new Map(previous).set(pageB, layer.id))
+    addStatusMessage(`${layer.name}を追加しました`)
+  }
+
+  const selectDrawingLayer = (layerId: string) => {
+    setActiveLayerIdsB(previous => new Map(previous).set(pageB, layerId))
+  }
+
+  const renameDrawingLayer = (layerId: string, name: string, persist = false) => {
+    const nextLayers = currentLayersB.map(layer => layer.id === layerId ? { ...layer, name } : layer)
+    if (persist) updateCurrentLayerState(nextLayers)
+    else setDrawingLayersB(previous => new Map(previous).set(pageB, nextLayers))
+  }
+
+  const toggleDrawingLayerVisibility = (layerId: string) => {
+    updateCurrentLayerState(currentLayersB.map(layer => (
+      layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
+    )))
+  }
+
+  const moveDrawingLayer = (layerId: string, targetLayerId: string) => {
+    const fromIndex = currentLayersB.findIndex(layer => layer.id === layerId)
+    const targetIndex = currentLayersB.findIndex(layer => layer.id === targetLayerId)
+    if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return
+    const nextLayers = [...currentLayersB]
+    const [movedLayer] = nextLayers.splice(fromIndex, 1)
+    nextLayers.splice(targetIndex, 0, movedLayer)
+    updateCurrentLayerState(nextLayers)
+  }
+
+  const nudgeDrawingLayer = (layerId: string, direction: 'up' | 'down') => {
+    const index = currentLayersB.findIndex(layer => layer.id === layerId)
+    const targetIndex = direction === 'up' ? index + 1 : index - 1
+    if (index < 0 || targetIndex < 0 || targetIndex >= currentLayersB.length) return
+    moveDrawingLayer(layerId, currentLayersB[targetIndex].id)
+  }
+
+  const deleteDrawingLayer = (layerId: string) => {
+    if (currentLayersB.length <= 1) {
+      addStatusMessage('最後のレイヤーは削除できません')
+      return
+    }
+    const layer = currentLayersB.find(item => item.id === layerId)
+    const hasPaths = currentAllDrawingPathsB.some(path => path.layerId === layerId)
+    if (hasPaths && !window.confirm(`${layer?.name || 'レイヤー'}と、その中の線を削除しますか？`)) return
+
+    const nextLayers = currentLayersB.filter(item => item.id !== layerId)
+    const nextPaths = currentAllDrawingPathsB.filter(path => path.layerId !== layerId)
+    updateCurrentLayerState(nextLayers, nextPaths)
+    if (activeLayerIdB === layerId) {
+      setActiveLayerIdsB(previous => new Map(previous).set(pageB, nextLayers[nextLayers.length - 1].id))
+    }
   }
 
   // 採点確定ハンドラ
@@ -907,15 +1016,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
   }
 
-  // クリア機能（現在のページのみ）
+  // クリア機能（現在のレイヤーのみ）
   const clearDrawing = () => {
-    setDrawingPathsB(prev => {
-      const newMap = new Map(prev)
-      newMap.delete(pageB)
-      return newMap
-    })
-    saveDrawing(pdfId, pageB, JSON.stringify([]))
-    addStatusMessage('描画をクリアしました')
+    const nextPaths = currentAllDrawingPathsB.filter(path => path.layerId !== activeLayerIdB)
+    updateCurrentLayerState(currentLayersB, nextPaths)
+    addStatusMessage('選択中のレイヤーをクリアしました')
   }
 
   // すべてのページの描画をクリア
@@ -925,6 +1030,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
 
     setDrawingPathsB(new Map())
+    setDrawingLayersB(new Map())
+    setActiveLayerIdsB(new Map())
     // IndexedDBからも削除
     try {
       const record = await getPDFRecord(pdfId)
@@ -1182,17 +1289,27 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
   }, [isResizing, activePanelIndex, panelStack])
 
-  // Ctrl+Z Undo - アクティブなページの最後の描画を削除
+  // Ctrl+Z Undo - 選択中レイヤーの最後の描画を削除
   const handleUndo = () => {
     const activePage = pageB
+    const layers = drawingLayersB.get(activePage) ?? DEFAULT_LAYERS
+    const activeLayerId = activeLayerIdsB.get(activePage) ?? layers[layers.length - 1].id
     setDrawingPathsB(prev => {
       const newMap = new Map(prev)
       const currentPaths = newMap.get(activePage) || []
-      if (currentPaths.length > 0) {
-        const newPaths = currentPaths.slice(0, -1)
-        newMap.set(activePage, newPaths)
+      let lastPathIndex = -1
+      for (let index = currentPaths.length - 1; index >= 0; index -= 1) {
+        if (currentPaths[index].layerId === activeLayerId) {
+          lastPathIndex = index
+          break
+        }
+      }
+      if (lastPathIndex >= 0) {
+        const newPaths = currentPaths.filter((_, index) => index !== lastPathIndex)
+        if (newPaths.length > 0) newMap.set(activePage, newPaths)
+        else newMap.delete(activePage)
         // Save to DB
-        saveDrawing(pdfId, activePage, JSON.stringify(newPaths))
+        saveDrawing(pdfId, activePage, serializeLayeredDrawing(layers, newPaths))
       }
       return newMap
     })
@@ -1386,6 +1503,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
             strokeStyle={strokeStyle}
             eraserSize={eraserSize}
+            scratchEraseEnabled={false}
+            editableLayerId={activeLayerIdB}
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
@@ -1525,6 +1644,82 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           </label>
         </aside>
       )}
+
+      {showLayerPanel && (isSplitView || activeTab === 'B') && (
+        <aside className={`drawing-layer-panel ${isPanesReversed ? 'on-left' : 'on-right'}`} aria-label="レイヤー">
+          <header className="drawing-layer-header">
+            <div>
+              <strong>レイヤー</strong>
+              <span>{currentLayersB.length}/{MAX_DRAWING_LAYERS}</span>
+            </div>
+            <div className="drawing-layer-header-actions">
+              <button type="button" onClick={addDrawingLayer} disabled={currentLayersB.length >= MAX_DRAWING_LAYERS} title="レイヤーを追加" aria-label="レイヤーを追加"><FiPlus /></button>
+              <button type="button" onClick={() => setShowLayerPanel(false)} title="閉じる" aria-label="レイヤーを閉じる"><FiX /></button>
+            </div>
+          </header>
+
+          <div className="drawing-layer-list">
+            {[...currentLayersB].reverse().map(layer => {
+              const originalIndex = currentLayersB.findIndex(item => item.id === layer.id)
+              const layerPaths = currentAllDrawingPathsB.filter(path => path.layerId === layer.id)
+              const sourceCanvas = paneBRef.current?.getPdfCanvas()
+              return (
+                <div
+                  key={layer.id}
+                  className={`drawing-layer-row ${activeLayerIdB === layer.id ? 'active' : ''} ${layer.visible ? '' : 'hidden'}`}
+                  draggable
+                  onDragStart={() => setDraggedLayerId(layer.id)}
+                  onDragEnd={() => setDraggedLayerId(null)}
+                  onDragOver={event => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggedLayerId) moveDrawingLayer(draggedLayerId, layer.id)
+                    setDraggedLayerId(null)
+                  }}
+                  onClick={() => selectDrawingLayer(layer.id)}
+                >
+                  <button
+                    type="button"
+                    className="drawing-layer-visibility"
+                    onClick={event => {
+                      event.stopPropagation()
+                      toggleDrawingLayerVisibility(layer.id)
+                    }}
+                    title={layer.visible ? '非表示にする' : '表示する'}
+                    aria-label={layer.visible ? `${layer.name}を非表示にする` : `${layer.name}を表示する`}
+                  >
+                    {layer.visible ? <FiEye /> : <FiEyeOff />}
+                  </button>
+                  <LayerThumbnail
+                    paths={layerPaths}
+                    sourceWidth={sourceCanvas?.width}
+                    sourceAspectRatio={sourceCanvas ? sourceCanvas.width / sourceCanvas.height : undefined}
+                  />
+                  <div className="drawing-layer-copy">
+                    <input
+                      value={layer.name}
+                      maxLength={24}
+                      aria-label="レイヤー名"
+                      onClick={event => event.stopPropagation()}
+                      onFocus={() => selectDrawingLayer(layer.id)}
+                      onChange={event => renameDrawingLayer(layer.id, event.target.value)}
+                      onBlur={event => {
+                        renameDrawingLayer(layer.id, event.target.value.trim() || `レイヤー${originalIndex + 1}`, true)
+                      }}
+                    />
+                    <small>{layerPaths.length > 0 ? `${layerPaths.length}本` : '空'}</small>
+                  </div>
+                  <div className="drawing-layer-order-actions">
+                    <button type="button" disabled={originalIndex === currentLayersB.length - 1} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'up') }} title="前面へ"><FiChevronUp /></button>
+                    <button type="button" disabled={originalIndex === 0} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'down') }} title="背面へ"><FiChevronDown /></button>
+                    <button type="button" disabled={currentLayersB.length <= 1} onClick={event => { event.stopPropagation(); deleteDrawingLayer(layer.id) }} title="削除"><FiTrash2 /></button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <p className="drawing-layer-hint">上下ボタンまたはドラッグで重なり順を変更</p>
+        </aside>
+      )}
     </div>
   )
 
@@ -1576,6 +1771,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           toggleEraserMode={toggleEraserMode}
           eraserSize={eraserSize}
           setEraserSize={setEraserSize}
+          showLayerControls={activePanel?.type === 'pdf' && (isSplitView || activeTab === 'B')}
+          isLayerPanelOpen={showLayerPanel}
+          toggleLayerPanel={() => setShowLayerPanel(previous => !previous)}
+          activeLayerName={currentLayersB.find(layer => layer.id === activeLayerIdB)?.name || 'レイヤー'}
+          layerCount={currentLayersB.length}
           onUndo={handleUndo}
           onClear={clearDrawing}
           onClearAll={clearAllDrawings}

@@ -61,6 +61,7 @@ function App() {
           storageIconSrc={`${import.meta.env.BASE_URL}icons/kids/logo.png`}
           historyVariant="progress"
           settingsVariant="teachers"
+          guideVariant="copy"
         />
       ) : currentView === 'viewer' && selectedPDF ? (
         <StudyPanel
