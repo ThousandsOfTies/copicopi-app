@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ICON_SVG } from '../../constants/icons';
-import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiSliders, FiTarget, FiLock } from 'react-icons/fi';
+import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
 
@@ -307,34 +307,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                         <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                     </div>
                                 </div>
-                                <div className="popup-row">
-                                    <label className="popup-icon-label" title="太さ" aria-label="太さ"><FiSliders size={19} /></label>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="100"
-                                        value={penSize}
-                                        onChange={(e) => setPenSize(Number(e.target.value))}
-                                        style={{ width: '100px' }}
-                                    />
-                                    <span>{penSize}px</span>
-                                </div>
-                                {brushType === 'watercolor' && (
-                                    <div className="popup-row">
-                                        <label className="popup-icon-label" title="濃さ" aria-label="濃さ"><FiDroplet size={18} /></label>
-                                        <input
-                                            type="range"
-                                            min="10"
-                                            max="70"
-                                            value={Math.round(watercolorOpacity * 100)}
-                                            onChange={(e) => setWatercolorOpacity(Number(e.target.value) / 100)}
-                                            style={{ width: '100px' }}
-                                        />
-                                        <span>{Math.round(watercolorOpacity * 100)}%</span>
-                                    </div>
-                                )}
                                 <p className="pen-setting-hint">
-                                    {brushType === 'solid' ? '不透明' : '半透明（すべての描き味に適用）'}
+                                    太さと濃さは画面左のスライダーで調整できます
                                 </p>
                             </div>
                         )}

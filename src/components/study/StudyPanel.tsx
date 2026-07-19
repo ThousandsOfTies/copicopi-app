@@ -15,6 +15,7 @@ import './StudyPanel.css'
 import { useGrading } from '../../hooks/study/useGrading'
 import { compressImage } from '@home-teacher/common/utils/image'
 import { useAuth } from '@home-teacher/common/contexts/AuthContext'
+import { FiDroplet } from 'react-icons/fi'
 
 // テキストアノテーションの型定義
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr'
@@ -1485,6 +1486,45 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           )
         })}
       </div>
+
+      {isDrawingMode && !isSelectionMode && (
+        <aside className="brush-control-rail" aria-label="ペンの太さと濃さ">
+          <label className="brush-vertical-control" title={`太さ ${penSize}px`}>
+            <span className="brush-control-preview brush-size-preview" style={{ width: `${Math.min(18, 5 + penSize * 0.13)}px`, height: `${Math.min(18, 5 + penSize * 0.13)}px` }} />
+            <input
+              type="range"
+              min="1"
+              max="100"
+              value={penSize}
+              aria-label="ペンの太さ"
+              aria-valuetext={`${penSize}px`}
+              onChange={(event) => setPenSize(Number(event.target.value))}
+            />
+            <output>{penSize}</output>
+          </label>
+          <label className="brush-vertical-control" title={`濃さ ${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}>
+            <FiDroplet className="brush-opacity-icon" aria-hidden="true" />
+            <input
+              type="range"
+              min="10"
+              max="100"
+              value={brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}
+              aria-label="ペンの濃さ"
+              aria-valuetext={`${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}
+              onChange={(event) => {
+                const opacity = Number(event.target.value) / 100
+                if (opacity >= 1) {
+                  setBrushType('solid')
+                } else {
+                  setWatercolorOpacity(opacity)
+                  setBrushType('watercolor')
+                }
+              }}
+            />
+            <output>{brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}</output>
+          </label>
+        </aside>
+      )}
     </div>
   )
 

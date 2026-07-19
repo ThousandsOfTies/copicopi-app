@@ -753,6 +753,88 @@
   line-height: 1.4;
 }
 
+/* Canvas-side controls use a familiar vertical-slider pattern, while keeping
+   CopiCopi's own compact glass-and-green visual language. */
+.brush-control-rail {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: 50%;
+  z-index: 10020;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  width: 44px;
+  padding: 10px 5px 8px;
+  box-sizing: border-box;
+  transform: translateY(-50%);
+  border: 1px solid rgba(78, 103, 89, 0.2);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 5px 18px rgba(35, 55, 43, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  touch-action: none;
+}
+
+.brush-vertical-control {
+  width: 32px;
+  display: grid;
+  grid-template-rows: 20px 205px 17px;
+  place-items: center;
+  gap: 3px;
+  color: #52645a;
+  cursor: ns-resize;
+}
+
+.brush-vertical-control + .brush-vertical-control {
+  padding-top: 9px;
+  border-top: 1px solid rgba(78, 103, 89, 0.16);
+}
+
+.brush-vertical-control input[type='range'] {
+  appearance: slider-vertical;
+  -webkit-appearance: slider-vertical;
+  width: 22px;
+  height: 205px;
+  margin: 0;
+  direction: rtl;
+  writing-mode: vertical-lr;
+  accent-color: #42a66d;
+  cursor: ns-resize;
+}
+
+.brush-vertical-control output {
+  min-width: 27px;
+  color: #53635a;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.brush-control-preview {
+  display: block;
+  border-radius: 50%;
+  background: #34473c;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.brush-opacity-icon {
+  width: 18px;
+  height: 18px;
+  color: #42a66d;
+}
+
+@media (max-height: 520px) {
+  .brush-vertical-control {
+    grid-template-rows: 18px 78px 16px;
+  }
+
+  .brush-vertical-control input[type='range'] {
+    height: 78px;
+  }
+}
+
 /* ページナビゲーション用スクロールバー */
 .page-scrollbar-container {
   position: absolute;
