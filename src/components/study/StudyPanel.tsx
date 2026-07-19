@@ -37,6 +37,18 @@ interface StudyPanelProps {
   onBack?: () => void
 }
 
+type PDFRenderMode = 'legacy' | 'adaptive'
+const PDF_RENDER_MODE_STORAGE_KEY = 'copicopi.pdfRenderMode'
+
+const resolvePDFRenderMode = (): PDFRenderMode => {
+  const requestedMode = new URLSearchParams(window.location.search).get('pdfRenderMode')
+  if (requestedMode === 'legacy' || requestedMode === 'adaptive') {
+    localStorage.setItem(PDF_RENDER_MODE_STORAGE_KEY, requestedMode)
+    return requestedMode
+  }
+  return localStorage.getItem(PDF_RENDER_MODE_STORAGE_KEY) === 'legacy' ? 'legacy' : 'adaptive'
+}
+
 type PanelData =
   | { type: 'pdf' }
   | { type: 'answer'; questionImage: string; source?: 'grading' }
@@ -82,6 +94,9 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Layout State
   // CopiCopi は見本（A面）と描画面（B面）を並べて使うため、左右開きを初期表示にする。
   const [isSplitView, setIsSplitView] = useState(true)
+  // Emergency rollback: open once with ?pdfRenderMode=legacy. The selection is
+  // persisted on the device; ?pdfRenderMode=adaptive switches it back.
+  const [pdfRenderMode] = useState<PDFRenderMode>(resolvePDFRenderMode)
   const [isPanesReversed, setIsPanesReversed] = useState(false)
   const [activeTab, setActiveTab] = useState<'A' | 'B'>('A')
 
@@ -1456,6 +1471,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={drawingPathsA}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
+            renderMode={pdfRenderMode}
             onPageChange={handlePageAChange}
             onPathAdd={() => {}}
             onPathsChange={() => {}}
@@ -1508,6 +1524,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
+            renderMode={pdfRenderMode}
             onPageChange={handlePageBChange}
             onPathAdd={(path) => handlePathAddB(pageB, path)}
             onPathsChange={(paths) => handlePathsChangeB(pageB, paths)}
@@ -1663,6 +1680,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
               const originalIndex = currentLayersB.findIndex(item => item.id === layer.id)
               const layerPaths = currentAllDrawingPathsB.filter(path => path.layerId === layer.id)
               const sourceCanvas = paneBRef.current?.getPdfCanvas()
+              const sourceCanvasWidth = sourceCanvas?.clientWidth || sourceCanvas?.width
+              const sourceCanvasHeight = sourceCanvas?.clientHeight || sourceCanvas?.height
               return (
                 <div
                   key={layer.id}
@@ -1691,8 +1710,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   </button>
                   <LayerThumbnail
                     paths={layerPaths}
-                    sourceWidth={sourceCanvas?.width}
-                    sourceAspectRatio={sourceCanvas ? sourceCanvas.width / sourceCanvas.height : undefined}
+                    sourceWidth={sourceCanvasWidth}
+                    sourceAspectRatio={sourceCanvasWidth && sourceCanvasHeight ? sourceCanvasWidth / sourceCanvasHeight : undefined}
                   />
                   <div className="drawing-layer-copy">
                     <input
