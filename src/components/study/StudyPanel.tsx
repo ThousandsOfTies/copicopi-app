@@ -1,19 +1,18 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { GradingResponseResult, getAvailableModels, ModelInfo } from '@home-teacher/common/services/api'
+import { GradingResponseResult, getAvailableModels, gradeWork, ModelInfo } from '@home-teacher/common/services/api'
 import GradingResult from './GradingResult'
 import GradingSpread from './GradingSpread'
 import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
-import { deleteAllDrawings, getAllDrawings, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveDrawing, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
+import { deleteAllDrawings, flushDrawingSaves, getAllDrawings, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveGradingImage, scheduleDrawingSave, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
 import { ICON_SVG } from '../../constants/icons'
 import { DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
 import { StudyToolbar, BreadcrumbItem, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
 import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
 import './StudyPanel.css'
-import { useGrading } from '../../hooks/study/useGrading'
-import { compressImage } from '@home-teacher/common/utils/image'
+import { compressImageDataUrl } from '@home-teacher/common/utils/image'
 import { useAuth } from '@home-teacher/common/contexts/AuthContext'
 import { FiChevronDown, FiChevronUp, FiDroplet, FiEye, FiEyeOff, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { createDefaultLayer, DrawingLayer, MAX_DRAWING_LAYERS, normalizeLayeredDrawing, serializeLayeredDrawing, sortPathsByLayer } from './layers'
@@ -188,7 +187,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [selectionRect, setSelectionRect] = useState<{ x: number, y: number, width: number, height: number } | null>(null)
   const isSelectingRef = useRef(false)
   const selectionStartRef = useRef<{ x: number, y: number } | null>(null)
-  // selectionPreview via hook
+  const [isGrading, setIsGrading] = useState(false)
 
   // Tool State
   const [isDrawingMode, setIsDrawingMode] = useState(true)
@@ -239,6 +238,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // CopiCopi stores the user's strokes on the B-side only. A-side remains a
   // read-only reference, even when the PDF page is the same on both sides.
   const [drawingPathsB, setDrawingPathsB] = useState<Map<number, DrawingPath[]>>(new Map())
+  const pendingDrawingWritesRef = useRef(new Map<number, string>())
   const [drawingLayersB, setDrawingLayersB] = useState<Map<number, DrawingLayer[]>>(new Map())
   const [activeLayerIdsB, setActiveLayerIdsB] = useState<Map<number, string>>(new Map())
   const [showLayerPanel, setShowLayerPanel] = useState(false)
@@ -249,6 +249,25 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const currentLayersB = drawingLayersB.get(pageB) ?? DEFAULT_LAYERS
   const activeLayerIdB = activeLayerIdsB.get(pageB) ?? currentLayersB[currentLayersB.length - 1].id
   const currentAllDrawingPathsB = drawingPathsB.get(pageB) ?? EMPTY_PATHS
+
+  // Reactのstate更新中にはIndexedDBへ触れず、確定後に最新状態だけを予約保存する。
+  useEffect(() => {
+    pendingDrawingWritesRef.current.forEach((data, page) => scheduleDrawingSave(pdfId, page, data))
+    pendingDrawingWritesRef.current.clear()
+  }, [drawingPathsB, pdfId])
+
+  useEffect(() => {
+    const flushPendingDrawings = () => {
+      pendingDrawingWritesRef.current.forEach((data, page) => scheduleDrawingSave(pdfId, page, data))
+      pendingDrawingWritesRef.current.clear()
+      void flushDrawingSaves(pdfId)
+    }
+    window.addEventListener('pagehide', flushPendingDrawings)
+    return () => {
+      window.removeEventListener('pagehide', flushPendingDrawings)
+      flushPendingDrawings()
+    }
+  }, [pdfId])
   const currentDrawingPathsB = useMemo(() => {
     const visibleLayerIds = new Set(currentLayersB.filter(layer => layer.visible).map(layer => layer.id))
     return sortPathsByLayer(
@@ -308,20 +327,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     loadTextAnnotations()
   }, [pdfId])
 
-
-  // Grading Hook
-  const {
-    isGrading,
-    setIsGrading,
-    selectionPreview,
-    setSelectionPreview,
-  } = useGrading(
-    pdfId,
-    (msg) => addStatusMessage(msg),
-    activeTab === 'A' ? pageA : pageB,
-    pdfRecord?.fileName || 'Unknown',
-    pdfRecord?.subjectId  // Pass subject ID for subject-specific grading
-  )
 
   // Panel stack state
   const [panelStack, setPanelStack] = useState<PanelData[]>([{ type: 'pdf' }])
@@ -751,7 +756,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       newMap.set(page, newPaths)
 
       // Save to DB
-      saveDrawing(pdfId, page, serializeLayeredDrawing(layers, newPaths))
+      pendingDrawingWritesRef.current.set(page, serializeLayeredDrawing(layers, newPaths))
 
       return newMap
     })
@@ -788,7 +793,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       } else {
         newMap.set(page, mergedPaths)
       }
-      saveDrawing(pdfId, page, serializeLayeredDrawing(layers, mergedPaths))
+      pendingDrawingWritesRef.current.set(page, serializeLayeredDrawing(layers, mergedPaths))
       return newMap
     })
   }
@@ -802,7 +807,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       else next.delete(pageB)
       return next
     })
-    saveDrawing(pdfId, pageB, serializeLayeredDrawing(layers, sortedPaths))
+    pendingDrawingWritesRef.current.set(pageB, serializeLayeredDrawing(layers, sortedPaths))
   }
 
   const addDrawingLayer = () => {
@@ -878,7 +883,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     let gradingPanelId: string | null = null
 
     try {
-      const croppedImageData = compositeImage
+      const croppedImageData = await compressImageDataUrl(compositeImage, 2048)
 
       // Validate image size (minimum 50x50)
       const img = new Image()
@@ -914,7 +919,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       // APIに送信（簡素化：切り抜き画像のみ）
       addStatusMessage('🎯 先生が作品を見ています...')
       const startTime = Date.now()
-      const { gradeWork } = await import('@home-teacher/common/services/api')
       const response = await gradeWork(
         croppedImageData,
         selectedModel !== 'default' ? selectedModel : undefined,
@@ -951,6 +955,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
       // 採点履歴を保存
       if (response.result.problems?.length) {
+        const imageId = await saveGradingImage(croppedImageData)
         for (const problem of response.result.problems) {
           const scoreFromConfidence = typeof problem.confidence === 'number'
             ? problem.confidence
@@ -973,7 +978,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             feedback: problem.feedback || '',
             explanation: problem.explanation || '',
             timestamp: Date.now(),
-            imageData: croppedImageData,
+            imageId,
             teacherMode: selectedTeacherMode,
             score,
             overallComment: response.result.overallComment || '',
@@ -1005,7 +1010,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // プレビューのキャンセル
   const cancelPreview = () => {
-    setSelectionPreview(null)
   }
 
   // 描画モードの切り替え
@@ -1048,6 +1052,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     setDrawingPathsB(new Map())
     setDrawingLayersB(new Map())
     setActiveLayerIdsB(new Map())
+    pendingDrawingWritesRef.current.clear()
     // IndexedDBのページ別筆跡ストアからも削除
     try {
       await deleteAllDrawings(pdfId)
@@ -1213,6 +1218,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }
   const handlePageBChange = (p: number) => {
     if (p < 1 || p > numPages) return
+    void flushDrawingSaves(pdfId, pageB)
     setPageB(p)
   }
 
@@ -1239,7 +1245,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // 矩形選択モードをキャンセル
   const handleCancelSelection = () => {
     setSelectionRect(null)
-    setSelectionPreview(null)
     addStatusMessage('選択をクリアしました。再度範囲を選択してください')
   }
 
@@ -1321,7 +1326,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         if (newPaths.length > 0) newMap.set(activePage, newPaths)
         else newMap.delete(activePage)
         // Save to DB
-        saveDrawing(pdfId, activePage, serializeLayeredDrawing(layers, newPaths))
+        pendingDrawingWritesRef.current.set(activePage, serializeLayeredDrawing(layers, newPaths))
       }
       return newMap
     })
