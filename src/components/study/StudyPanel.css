@@ -107,6 +107,20 @@
   box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
 }
 
+.pen-toolbar-icon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.pen-toolbar-icon.watercolor {
+  background: radial-gradient(circle, rgba(148, 163, 184, 0.12), transparent 68%);
+  border-radius: 50%;
+}
+
 /* Ensure icons that shouldn't change color (like pen with specific color) override this or inherit? 
    Actually, if I set color to #2E7D32, it might tint SVGs that use currentColor. 
    The user said "don't invert color". 
@@ -203,9 +217,16 @@
   text-align: left;
 }
 
-.toolbar .teacher-grade-menu button:hover,
+.toolbar .teacher-grade-menu button:hover:not(:disabled),
 .toolbar .teacher-grade-menu button.selected {
   background: #f1f5f2;
+}
+
+.toolbar .teacher-grade-menu button.locked,
+.toolbar .teacher-grade-menu button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  background: transparent;
 }
 
 .teacher-option-icon {
@@ -236,6 +257,14 @@
 .teacher-option-check {
   color: #38865f;
   font-weight: 800;
+}
+
+.teacher-option-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #7f8984;
+  font-size: 13px;
 }
 
 /* アイコン自体の調整用 */

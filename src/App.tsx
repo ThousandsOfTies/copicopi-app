@@ -58,6 +58,9 @@ function App() {
           hasUpdate={needRefresh}
           onUpdate={() => updateServiceWorker(true)}
           studyTabLabel="Enjoy"
+          storageIconSrc={`${import.meta.env.BASE_URL}icons/kids/logo.png`}
+          historyVariant="progress"
+          settingsVariant="teachers"
         />
       ) : currentView === 'viewer' && selectedPDF ? (
         <StudyPanel

@@ -1,6 +1,10 @@
 import 'dotenv/config'
 import cors from 'cors'
 import express from 'express'
+import admin from 'firebase-admin'
+import fs from 'node:fs'
+import path from 'node:path'
+import Stripe from 'stripe'
 
 const PORT = Number(process.env.PORT || 3003)
 const MODEL_ID = 'gemini-3.5-flash'
@@ -10,6 +14,53 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,ht
   .map(origin => origin.trim())
   .filter(Boolean)
 
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null
+
+if (!admin.apps.length) {
+  try {
+    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT
+    if (serviceAccountPath) {
+      const serviceAccount = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), serviceAccountPath), 'utf8'))
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) })
+    } else {
+      admin.initializeApp()
+    }
+    console.info('[firebase] Admin initialized')
+  } catch (error) {
+    console.warn('[firebase] Admin initialization failed; payment endpoints are unavailable', error)
+  }
+}
+
+type AuthenticatedRequest = express.Request & { user?: admin.auth.DecodedIdToken }
+
+const authenticateUser = async (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
+  const authorization = req.headers.authorization
+  if (!authorization?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' })
+  if (!admin.apps.length) return res.status(503).json({ error: 'Firebase Admin is not configured' })
+  try {
+    req.user = await admin.auth().verifyIdToken(authorization.slice('Bearer '.length))
+    next()
+  } catch (error) {
+    console.warn('[auth] Invalid Firebase token', error)
+    res.status(401).json({ error: 'Invalid authentication token' })
+  }
+}
+
+const getReturnUrl = (req: express.Request) => {
+  const requested = typeof req.body?.baseUrl === 'string' ? req.body.baseUrl : ''
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : ''
+  const fallback = allowedOrigins[0] || 'http://localhost:3000'
+  const candidate = requested || origin || fallback
+  try {
+    const url = new URL(candidate)
+    if (!allowedOrigins.includes(url.origin)) return fallback
+    return candidate.replace(/\/$/, '')
+  } catch {
+    return fallback
+  }
+}
+
 const app = express()
 app.disable('x-powered-by')
 app.use(cors({
@@ -18,7 +69,10 @@ app.use(cors({
     callback(new Error('Origin is not allowed'))
   }
 }))
-app.use(express.json({ limit: '20mb' }))
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/webhooks/stripe') return next()
+  express.json({ limit: '20mb' })(req, res, next)
+})
 
 const responseSchema = {
   type: 'object',
@@ -232,6 +286,99 @@ app.post('/api/grade-work', async (req, res) => {
       : '採点処理に失敗しました'
     console.error('[grade-work:error]', { requestId, message, durationMs: Date.now() - startedAt })
     res.status(500).json({ success: false, error: message })
+  }
+})
+
+app.post('/api/create-checkout-session', authenticateUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const priceId = process.env.STRIPE_PRICE_ID
+    if (!stripe || !priceId) return res.status(503).json({ error: 'Stripe is not configured' })
+    const user = req.user!
+    const userRef = admin.firestore().collection('users').doc(user.uid)
+    const userSnapshot = await userRef.get()
+    const customerId = userSnapshot.data()?.stripeCustomerId as string | undefined
+    const returnUrl = getReturnUrl(req)
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${returnUrl}?checkout=success`,
+      cancel_url: `${returnUrl}?checkout=canceled`,
+      client_reference_id: user.uid,
+      metadata: { app: 'CopiCopi', firebaseUid: user.uid },
+      ...(customerId ? { customer: customerId } : { customer_email: user.email })
+    })
+    res.json({ url: session.url })
+  } catch (error) {
+    console.error('[stripe] Checkout session failed', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Checkout session failed' })
+  }
+})
+
+app.post('/api/create-portal-session', authenticateUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    if (!stripe) return res.status(503).json({ error: 'Stripe is not configured' })
+    const userSnapshot = await admin.firestore().collection('users').doc(req.user!.uid).get()
+    const customerId = userSnapshot.data()?.stripeCustomerId as string | undefined
+    if (!customerId) return res.status(400).json({ error: 'Stripe customer was not found' })
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: getReturnUrl(req)
+    })
+    res.json({ url: session.url })
+  } catch (error) {
+    console.error('[stripe] Portal session failed', error)
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Portal session failed' })
+  }
+})
+
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  const signature = req.headers['stripe-signature']
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  if (!stripe || !webhookSecret || typeof signature !== 'string') {
+    return res.status(503).send('Stripe webhook is not configured')
+  }
+
+  let event: Stripe.Event
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret)
+  } catch (error) {
+    console.warn('[stripe] Webhook signature verification failed', error)
+    return res.status(400).send('Invalid webhook signature')
+  }
+
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+      const uid = session.client_reference_id || session.metadata?.firebaseUid
+      if (uid) {
+        await admin.firestore().collection('users').doc(uid).set({
+          isPremium: true,
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: session.subscription
+        }, { merge: true })
+      }
+    } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as Stripe.Subscription
+      const customerId = subscription.customer as string
+      const users = await admin.firestore().collection('users').where('stripeCustomerId', '==', customerId).limit(1).get()
+      if (!users.empty) {
+        const active = event.type !== 'customer.subscription.deleted'
+          && (subscription.status === 'active' || subscription.status === 'trialing')
+        await users.docs[0].ref.set({
+          isPremium: active,
+          stripeSubscriptionId: active ? subscription.id : admin.firestore.FieldValue.delete()
+        }, { merge: true })
+      }
+    } else if (event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object as Stripe.Invoice
+      const customerId = invoice.customer as string
+      const users = await admin.firestore().collection('users').where('stripeCustomerId', '==', customerId).limit(1).get()
+      if (!users.empty) await users.docs[0].ref.set({ isPremium: true }, { merge: true })
+    }
+    res.json({ received: true })
+  } catch (error) {
+    console.error('[stripe] Webhook processing failed', error)
+    res.status(500).send('Webhook processing failed')
   }
 })
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ICON_SVG } from '../../constants/icons';
-import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiEdit2, FiDroplet, FiSliders, FiTarget } from 'react-icons/fi';
+import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiSliders, FiTarget, FiLock } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
 
@@ -29,6 +29,7 @@ interface StudyToolbarProps {
     showTeacherGrade: boolean;
     teacherMode: TeacherMode;
     setTeacherMode: (mode: TeacherMode) => void;
+    enabledTeacherModes?: TeacherMode[];
 
     // Text Tool
     isTextMode: boolean;
@@ -86,6 +87,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     showTeacherGrade,
     teacherMode,
     setTeacherMode,
+    enabledTeacherModes = ['kind', 'balanced', 'strict'],
     isTextMode,
     toggleTextMode,
     textFontSize,
@@ -134,12 +136,24 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
         '#831843', '#db2777', '#f472b6', '#fbcfe8', '#713f12', '#a16207', '#d6a75d', '#f5e6c8'
     ];
 
-    const teacherOptions: Array<{ mode: TeacherMode; label: string; description: string; icon: React.ReactNode }> = [
+    const allTeacherOptions: Array<{ mode: TeacherMode; label: string; description: string; icon: React.ReactNode }> = [
         { mode: 'kind', label: 'KIND', description: 'Good points first', icon: <FiHeart /> },
         { mode: 'balanced', label: 'BALANCED', description: 'Clear and practical', icon: <MdBalance /> },
-        { mode: 'strict', label: 'STRICT', description: 'Detailed and precise', icon: <FiTarget /> },
+        { mode: 'strict', label: 'HARD', description: 'Detailed and precise', icon: <FiTarget /> },
     ];
-    const selectedTeacher = teacherOptions.find(option => option.mode === teacherMode) || teacherOptions[0];
+    const selectedTeacher = allTeacherOptions.find(option => option.mode === teacherMode) || allTeacherOptions[0];
+    const penIconOpacity = brushType === 'watercolor' ? Math.max(watercolorOpacity, 0.32) : 1;
+    const penIconStyle = {
+        color: isDrawingMode ? penColor : 'currentColor',
+        opacity: isDrawingMode ? penIconOpacity : 1,
+        filter: isDrawingMode && penColor.toLowerCase() === '#ffffff' ? 'drop-shadow(0 0 1px #475569)' : undefined,
+    };
+    const activePenIcon = strokeStyle === 'marker'
+        ? <BiHighlight size={21} style={penIconStyle} />
+        : strokeStyle === 'brush'
+            ? <BiBrush size={21} style={penIconStyle} />
+            : <BiPencil size={21} style={penIconStyle} />;
+    const strokeStyleLabel = strokeStyle === 'marker' ? 'マーカー' : strokeStyle === 'brush' ? '筆' : 'えんぴつ';
 
     useEffect(() => {
         if (!showTeacherMenu) return;
@@ -243,9 +257,10 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         <button
                             onClick={handlePenClick}
                             className={isDrawingMode ? 'active' : ''}
-                            title={isDrawingMode ? 'ペンモード ON（クリックで設定）' : 'ペンモード OFF'}
+                            title={isDrawingMode ? `${strokeStyleLabel}・${brushType === 'solid' ? 'くっきり' : '半透明'}（クリックで設定）` : 'ペンモード OFF'}
+                            aria-label={`${strokeStyleLabel}、${brushType === 'solid' ? 'くっきり' : '半透明'}`}
                         >
-                            <FiEdit2 size={20} color={isDrawingMode ? penColor : 'currentColor'} />
+                            <span className={`pen-toolbar-icon ${brushType}`}>{activePenIcon}</span>
                         </button>
 
                         {/* ペン設定ポップアップ */}
@@ -280,16 +295,16 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                 <div className="popup-row">
                                     <label className="popup-icon-label" title="質感" aria-label="質感"><FiDroplet size={19} /></label>
                                     <div className="pen-option-group">
-                                        <button type="button" aria-label="くっきり" title="くっきり（不透明）" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} /></button>
-                                        <button type="button" aria-label="水彩" title="水彩（半透明）" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} /></button>
+                                        <button type="button" aria-label="くっきり" title="くっきり（不透明）" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} style={{ color: penColor, opacity: 1 }} /></button>
+                                        <button type="button" aria-label="水彩" title="水彩（半透明）" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} style={{ color: penColor, opacity: Math.max(watercolorOpacity, 0.32) }} /></button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
                                     <label className="popup-icon-label" title="描き味" aria-label="描き味"><BiBrush size={21} /></label>
                                     <div className="pen-option-group">
-                                        <button type="button" aria-label="えんぴつ" title="えんぴつ" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} /></button>
-                                        <button type="button" aria-label="マーカー" title="マーカー" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} /></button>
-                                        <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} /></button>
+                                        <button type="button" aria-label="えんぴつ" title="えんぴつ" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label="マーカー" title="マーカー" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
@@ -517,14 +532,19 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                 </button>
                                 {showTeacherMenu && (
                                     <div className="teacher-grade-menu" role="menu">
-                                        {teacherOptions.map(option => (
+                                        {allTeacherOptions.map(option => {
+                                            const isEnabled = enabledTeacherModes.includes(option.mode);
+                                            return (
                                             <button
                                                 key={option.mode}
                                                 type="button"
                                                 role="menuitemradio"
                                                 aria-checked={teacherMode === option.mode}
-                                                className={teacherMode === option.mode ? 'selected' : ''}
+                                                aria-disabled={!isEnabled}
+                                                disabled={!isEnabled}
+                                                className={`${teacherMode === option.mode ? 'selected' : ''} ${!isEnabled ? 'locked' : ''}`}
                                                 onClick={() => {
+                                                    if (!isEnabled) return;
                                                     setTeacherMode(option.mode);
                                                     setShowTeacherMenu(false);
                                                 }}
@@ -534,9 +554,11 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                                     <strong>{option.label}</strong>
                                                     <small>{option.description}</small>
                                                 </span>
-                                                {teacherMode === option.mode && <span className="teacher-option-check">✓</span>}
+                                                {teacherMode === option.mode
+                                                    ? <span className="teacher-option-check">✓</span>
+                                                    : !isEnabled && <span className="teacher-option-lock"><FiLock /></span>}
                                             </button>
-                                        ))}
+                                        )})}
                                     </div>
                                 )}
                             </div>

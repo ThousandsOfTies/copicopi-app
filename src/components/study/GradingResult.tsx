@@ -17,7 +17,7 @@ const splitAdvice = (value?: string) => value
 const teacherDisplay = {
   kind: { icon: '♡', label: 'KIND' },
   balanced: { icon: '⚖', label: 'BALANCED' },
-  strict: { icon: '◎', label: 'STRICT' }
+  strict: { icon: '◎', label: 'HARD' }
 } as const
 
 const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind', modelName, responseTime }: GradingResultProps) => {

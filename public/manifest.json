@@ -1,7 +1,7 @@
 {
-    "name": "TutoTuto",
-    "short_name": "TutoTuto",
-    "description": "AI-powered drill grading app with handwriting support",
+    "name": "CopiCopi",
+    "short_name": "CopiCopi",
+    "description": "AIが模写をアドバイスするイラスト練習アプリ",
     "display": "standalone",
     "background_color": "#ffffff",
     "theme_color": "#3498db",

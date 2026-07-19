@@ -5,7 +5,7 @@ import { GradingResponseResult, getAvailableModels, ModelInfo } from '@home-teac
 import GradingResult from './GradingResult'
 import GradingSpread from './GradingSpread'
 import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
-import { savePDFRecord, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveDrawing, saveTextAnnotation } from '@home-teacher/common/utils/indexedDB'
+import { savePDFRecord, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveDrawing, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
 import { ICON_SVG } from '../../constants/icons'
 import { DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
@@ -51,6 +51,7 @@ type PanelData =
 
 const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const { t, i18n } = useTranslation()
+  const { userData } = useAuth()
   // Refs
   const paneARef = useRef<PDFPaneHandle>(null)
   const paneBRef = useRef<PDFPaneHandle>(null)
@@ -126,15 +127,28 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [selectedModel, setSelectedModel] = useState<string>('default')
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
   const [defaultModelName, setDefaultModelName] = useState<string>('Gemini 2.0 Flash')
-  const [teacherMode, setTeacherModeState] = useState<TeacherMode>(() => {
-    const saved = localStorage.getItem('copicopiTeacherMode')
-    return saved === 'balanced' || saved === 'strict' ? saved : 'kind'
-  })
+  const [teacherMode, setTeacherModeState] = useState<TeacherMode>('kind')
+  const [enabledTeacherModes, setEnabledTeacherModes] = useState<TeacherMode[]>(['kind'])
 
   const setTeacherMode = (mode: TeacherMode) => {
+    if (!enabledTeacherModes.includes(mode)) return
     setTeacherModeState(mode)
-    localStorage.setItem('copicopiTeacherMode', mode)
   }
+
+  useEffect(() => {
+    getAppSettings()
+      .then(settings => {
+        const configuredModes = userData?.isPremium ? settings.enabledTeacherModes || ['kind'] : ['kind']
+        const modes = (['kind', 'balanced', 'strict'] as TeacherMode[])
+          .filter(mode => mode === 'kind' || configuredModes.includes(mode))
+        const defaultMode = settings.defaultTeacherMode && modes.includes(settings.defaultTeacherMode)
+          ? settings.defaultTeacherMode
+          : 'kind'
+        setEnabledTeacherModes(modes)
+        setTeacherModeState(defaultMode)
+      })
+      .catch(error => console.error('Failed to load teacher settings:', error))
+  }, [userData?.isPremium])
 
   useEffect(() => {
     getAvailableModels()
@@ -160,7 +174,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [isDrawingMode, setIsDrawingMode] = useState(true)
   const [isEraserMode, setIsEraserMode] = useState(false)
   const [isTextMode, setIsTextMode] = useState(false)
-  const [penColor, setPenColor] = useState('#FF0000') // Updated to match bottom block default
+  const [penColor, setPenColor] = useState('#000000')
   const [penSize, setPenSize] = useState(3)
   const [brushType, setBrushType] = useState<BrushType>('solid')
   const [strokeStyle, setStrokeStyle] = useState<StrokeStyle>('pencil')
@@ -187,7 +201,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // SNS State
   const [snsLinks, setSnsLinks] = useState<SNSLinkRecord[]>([])
-  const { userData } = useAuth()
   const snsTimeLimit = userData?.snsRewardMinutes || 60
 
   useEffect(() => {
@@ -813,6 +826,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       // 採点履歴を保存
       if (response.result.problems?.length) {
         for (const problem of response.result.problems) {
+          const scoreFromConfidence = typeof problem.confidence === 'number'
+            ? problem.confidence
+            : Number(problem.confidence)
+          const scoreFromTitle = Number(problem.problemNumber?.match(/([1-5])\s*\/\s*5/)?.[1])
+          const score = Number.isFinite(scoreFromConfidence) && scoreFromConfidence >= 1
+            ? scoreFromConfidence
+            : (Number.isFinite(scoreFromTitle) ? scoreFromTitle : undefined)
+          const explanationLines = problem.explanation?.split('\n').map(line => line.trim()).filter(Boolean) || []
+          const nextPointLine = explanationLines.find(line => line.startsWith('次のポイント：'))
           const historyRecord = {
             id: generateGradingHistoryId(),
             pdfId,
@@ -826,6 +848,11 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             explanation: problem.explanation || '',
             timestamp: Date.now(),
             imageData: croppedImageData,
+            teacherMode: selectedTeacherMode,
+            score,
+            overallComment: response.result.overallComment || '',
+            nextPoint: nextPointLine?.replace(/^次のポイント：/, '') || '',
+            practiceAdvice: explanationLines.filter(line => line !== nextPointLine).join(' '),
             matchingMetadata: problem.matchingMetadata
           }
           await saveGradingHistory(historyRecord)
@@ -1486,6 +1513,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           showTeacherGrade={activePanel?.type === 'pdf'}
           teacherMode={teacherMode}
           setTeacherMode={setTeacherMode}
+          enabledTeacherModes={enabledTeacherModes}
           isTextMode={isTextMode}
           toggleTextMode={toggleTextMode}
           textFontSize={textFontSize}
