@@ -780,7 +780,7 @@
 .brush-vertical-control {
   width: 32px;
   display: grid;
-  grid-template-rows: 20px 205px 17px;
+  grid-template-rows: 20px 220px 17px;
   place-items: center;
   gap: 3px;
   color: #52645a;
@@ -796,7 +796,7 @@
   appearance: slider-vertical;
   -webkit-appearance: slider-vertical;
   width: 22px;
-  height: 205px;
+  height: 220px;
   margin: 0;
   direction: rtl;
   writing-mode: vertical-lr;
