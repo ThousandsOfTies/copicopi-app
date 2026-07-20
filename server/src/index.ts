@@ -391,7 +391,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           && (subscription.status === 'active' || subscription.status === 'trialing')
         await users.docs[0].ref.update({
           [`isPremium`]: active,
-          [`stripeSubscriptionId`]: active ? subscription.id : admin.firestore.FieldValue.delete()
+          [`stripeSubscriptionId`]: active ? subscription.id : admin.firestore.FieldValue.delete(),
+          [`cancelAtPeriodEnd`]: active ? subscription.cancel_at_period_end : admin.firestore.FieldValue.delete(),
+          [`currentPeriodEnd`]: active ? subscription.current_period_end : admin.firestore.FieldValue.delete()
         })
       }
     } else if (event.type === 'invoice.payment_succeeded') {
