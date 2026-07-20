@@ -16,8 +16,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,ht
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null
-const entitlementKey = 'copicopi'
-const entitlementField = `entitlements.${entitlementKey}`
 
 if (!admin.apps.length) {
   try {
@@ -323,7 +321,7 @@ app.post('/api/create-checkout-session', authenticateUser, async (req: Authentic
     const user = req.user!
     const userRef = admin.firestore().collection('users').doc(user.uid)
     const userSnapshot = await userRef.get()
-    const customerId = userSnapshot.data()?.entitlements?.[entitlementKey]?.stripeCustomerId as string | undefined
+    const customerId = userSnapshot.data()?.stripeCustomerId as string | undefined
     const returnUrl = getReturnUrl(req)
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -345,7 +343,7 @@ app.post('/api/create-portal-session', authenticateUser, async (req: Authenticat
   try {
     if (!stripe) return res.status(503).json({ error: 'Stripe is not configured' })
     const userSnapshot = await admin.firestore().collection('users').doc(req.user!.uid).get()
-    const customerId = userSnapshot.data()?.entitlements?.[entitlementKey]?.stripeCustomerId as string | undefined
+    const customerId = userSnapshot.data()?.stripeCustomerId as string | undefined
     if (!customerId) return res.status(400).json({ error: 'Stripe customer was not found' })
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
@@ -379,32 +377,28 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       const uid = session.client_reference_id || session.metadata?.firebaseUid
       if (uid) {
         await admin.firestore().collection('users').doc(uid).set({
-          entitlements: {
-            [entitlementKey]: {
-              isPremium: true,
-              stripeCustomerId: session.customer,
-              stripeSubscriptionId: session.subscription
-            }
-          }
+            isPremium: true,
+            stripeCustomerId: session.customer,
+            stripeSubscriptionId: session.subscription
         }, { merge: true })
       }
     } else if (event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
-        const users = await admin.firestore().collection('users').where(`${entitlementField}.stripeCustomerId`, '==', customerId).limit(1).get()
+        const users = await admin.firestore().collection('users').where(`stripeCustomerId`, '==', customerId).limit(1).get()
       if (!users.empty) {
         const active = event.type !== 'customer.subscription.deleted'
           && (subscription.status === 'active' || subscription.status === 'trialing')
         await users.docs[0].ref.update({
-          [`${entitlementField}.isPremium`]: active,
-          [`${entitlementField}.stripeSubscriptionId`]: active ? subscription.id : admin.firestore.FieldValue.delete()
+          [`isPremium`]: active,
+          [`stripeSubscriptionId`]: active ? subscription.id : admin.firestore.FieldValue.delete()
         })
       }
     } else if (event.type === 'invoice.payment_succeeded') {
       const invoice = event.data.object as Stripe.Invoice
       const customerId = invoice.customer as string
-      const users = await admin.firestore().collection('users').where(`${entitlementField}.stripeCustomerId`, '==', customerId).limit(1).get()
-      if (!users.empty) await users.docs[0].ref.update({ [`${entitlementField}.isPremium`]: true })
+      const users = await admin.firestore().collection('users').where(`stripeCustomerId`, '==', customerId).limit(1).get()
+      if (!users.empty) await users.docs[0].ref.update({ [`isPremium`]: true })
     }
     res.json({ received: true })
   } catch (error) {
