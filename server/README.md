@@ -34,8 +34,8 @@ npm run dev
 - `STRIPE_PRICE_ID`（CopiCopi Premiumの商品価格ID）
 - `STRIPE_WEBHOOK_SECRET`（Secret Manager推奨）
 
-決済APIではFirebase AuthenticationのIDトークンを検証し、Firestoreの`users/{uid}.isPremium`をWebhookで更新します。Cloud RunのサービスアカウントにはFirebase AuthenticationとFirestoreへの権限が必要です。ローカルでは`FIREBASE_SERVICE_ACCOUNT`にサービスアカウントJSONのパスを設定してください。
+決済APIではFirebase AuthenticationのIDトークンを検証し、WebhookでFirestoreの`users/{uid}.entitlements.copicopi`を更新します。各アプリのPremium状態、Stripe顧客ID、契約IDはこのアプリ別領域に保存されるため、TutoTuto/DoriDoriの購入状態とは共有されません。Cloud RunのサービスアカウントにはFirebase AuthenticationとFirestoreへの権限が必要です。ローカルでは`FIREBASE_SERVICE_ACCOUNT`にサービスアカウントJSONのパスを設定してください。
 
-フロントエンド側には、リポジトリ直下の`.env.example`に記載した`VITE_FIREBASE_*`を設定します。TutoTutoと同じFirebaseプロジェクトを指定すればPremium状態を共有でき、別プロジェクトを指定すればCopiCopi独立の契約管理になります。
+フロントエンド側には、リポジトリ直下の`.env.example`に記載した`VITE_FIREBASE_*`を設定します。TutoTutoと同じFirebaseプロジェクトを指定しても、Premium状態は`entitlements.copicopi`としてアプリ別に管理されます。別プロジェクトを指定する必要はありません。
 
 デプロイ後、GitHub ActionsのRepository variable `COPICOPI_API_URL` にCloud Run URLを設定し、フロントのビルド時に `VITE_API_URL` として渡します。
