@@ -393,7 +393,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           [`isPremium`]: active,
           [`stripeSubscriptionId`]: active ? subscription.id : admin.firestore.FieldValue.delete(),
           [`cancelAtPeriodEnd`]: active ? subscription.cancel_at_period_end : admin.firestore.FieldValue.delete(),
-          [`currentPeriodEnd`]: active ? subscription.current_period_end : admin.firestore.FieldValue.delete()
+          [`currentPeriodEnd`]: active ? ((subscription as any).current_period_end || subscription.items?.data[0]?.current_period_end) : admin.firestore.FieldValue.delete()
         })
       }
     } else if (event.type === 'invoice.payment_succeeded') {
