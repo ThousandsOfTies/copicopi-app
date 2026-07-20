@@ -77,12 +77,12 @@ app.use((req, res, next) => {
 const responseSchema = {
   type: 'object',
   properties: {
-    level: { type: 'integer', minimum: 1, maximum: 5, description: '選択された先生の方針による総合到達度。' },
-    label: { type: 'string', description: '到達度を端的に表す日本語。' },
-    summary: { type: 'string', description: '見本との共通点と主要な差を含む、客観的な総評。' },
-    goodPoints: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2, description: '画像から確認できる具体的な良い点。' },
-    improvements: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2, description: '場所・差・直し方を含む、優先度の高い改善指導。' },
-    encouragement: { type: 'string', description: '次の一枚で実行できる短い練習課題。抽象的な称賛だけにしない。' }
+    level: { type: 'integer', minimum: 1, maximum: 5, description: 'Overall achievement level under the selected teacher policy.' },
+    label: { type: 'string', description: 'A concise achievement label in the requested output language.' },
+    summary: { type: 'string', description: 'An objective summary of similarities and the most important differences, in the requested output language.' },
+    goodPoints: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2, description: 'Specific visible strengths, in the requested output language.' },
+    improvements: { type: 'array', items: { type: 'string' }, minItems: 1, maxItems: 2, description: 'High-priority guidance including location, difference, and correction, in the requested output language.' },
+    encouragement: { type: 'string', description: 'A short actionable exercise for the next drawing, in the requested output language.' }
   },
   required: ['level', 'label', 'summary', 'goodPoints', 'improvements', 'encouragement']
 }
@@ -140,6 +140,15 @@ const basePrompt = `あなたは、観察力を育てることに長けた、誠
 const parseTeacherMode = (value: unknown): TeacherMode =>
   value === 'balanced' || value === 'strict' ? value : 'kind'
 
+type OutputLanguage = 'ja' | 'en'
+const parseOutputLanguage = (value: unknown): OutputLanguage =>
+  typeof value === 'string' && value.toLowerCase().startsWith('en') ? 'en' : 'ja'
+
+const outputLanguageInstructions: Record<OutputLanguage, string> = {
+  ja: `【出力言語】JSON内のlabel、summary、goodPoints、improvements、encouragementは、すべて自然な日本語で書いてください。`,
+  en: `【Output language — highest priority】Write every user-facing JSON string in natural English: label, summary, goodPoints, improvements, and encouragement. Do not include Japanese words, headings, or punctuation in those values.`
+}
+
 const targetScopeInstruction = `【最優先：評価対象の特定】
 このルールはKIND、BALANCED、STRICTのすべての先生方針より優先します。
 
@@ -156,12 +165,12 @@ A面に表示されている次の要素は評価対象外です。
 A面にだけ存在する要素があっても、それが特定した見本の一部だと明確に判断できない限り、「描かれていない」「不足している」と指摘せず、採点にも影響させないでください。
 複数の見本があり対応関係を判断しにくい場合は、B面と形、ポーズ、配置が最も近い見本を選び、曖昧な要素は減点対象にしないでください。`
 
-const parseImageDataUrl = (value: unknown) => {
-  if (typeof value !== 'string') throw new Error('画像データがありません')
+const parseImageDataUrl = (value: unknown, language: OutputLanguage) => {
+  if (typeof value !== 'string') throw new Error(language === 'en' ? 'Image data is missing.' : '画像データがありません')
   const match = value.match(/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/)
-  if (!match) throw new Error('PNG、JPEG、WEBPの画像を指定してください')
+  if (!match) throw new Error(language === 'en' ? 'Please provide a PNG, JPEG, or WEBP image.' : 'PNG、JPEG、WEBPの画像を指定してください')
   const byteLength = Buffer.byteLength(match[2], 'base64')
-  if (byteLength > MAX_IMAGE_BYTES) throw new Error('画像が大きすぎます')
+  if (byteLength > MAX_IMAGE_BYTES) throw new Error(language === 'en' ? 'The image is too large.' : '画像が大きすぎます')
   return { mimeType: match[1], data: match[2], byteLength }
 }
 
@@ -179,20 +188,25 @@ app.get('/api/models', (_req, res) => {
 app.post('/api/grade-work', async (req, res) => {
   const startedAt = Date.now()
   const requestId = crypto.randomUUID().slice(0, 8)
+  const outputLanguage = parseOutputLanguage(req.body?.language)
   try {
     const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) return res.status(503).json({ success: false, error: 'サーバーにGemini APIキーが設定されていません' })
+    if (!apiKey) return res.status(503).json({
+      success: false,
+      error: outputLanguage === 'en' ? 'The Gemini API key is not configured on the server.' : 'サーバーにGemini APIキーが設定されていません'
+    })
 
-    const image = parseImageDataUrl(req.body?.croppedImageData)
+    const image = parseImageDataUrl(req.body?.croppedImageData, outputLanguage)
     const teacherMode = parseTeacherMode(req.body?.teacherMode)
     const panesReversed = req.body?.panesReversed === true
     const paneOrder = panesReversed
       ? '左側がユーザーの模写（B面）、右側が見本（A面）です。'
       : '左側が見本（A面）、右側がユーザーの模写（B面）です。'
-    const prompt = `${targetScopeInstruction}\n\n${basePrompt}\n${paneOrder}\n\n${teacherInstructions[teacherMode]}`
+    const prompt = `${targetScopeInstruction}\n\n${basePrompt}\n${paneOrder}\n\n${teacherInstructions[teacherMode]}\n\n${outputLanguageInstructions[outputLanguage]}`
     console.info('[grade-work:start]', {
       requestId,
       teacherMode,
+      outputLanguage,
       panesReversed,
       mimeType: image.mimeType,
       imageBytes: image.byteLength
@@ -239,7 +253,7 @@ app.post('/api/grade-work', async (req, res) => {
     }
 
     const text = payload?.candidates?.[0]?.content?.parts?.map((part: any) => part.text || '').join('')
-    if (!text) throw new Error('Geminiから評価結果が返りませんでした')
+    if (!text) throw new Error(outputLanguage === 'en' ? 'The AI returned no review result.' : 'Geminiから評価結果が返りませんでした')
     let evaluation: any
     try {
       evaluation = JSON.parse(text)
@@ -253,9 +267,18 @@ app.post('/api/grade-work', async (req, res) => {
       throw new Error(`Gemini JSON parse failed: ${JSON.stringify(details)}`)
     }
     const feedback = evaluation.goodPoints.join('／')
+    const nextPointPrefix = outputLanguage === 'en' ? 'Next point: ' : '次のポイント：'
     const improvementText = evaluation.improvements.length
-      ? `次のポイント：${evaluation.improvements.join('／')}`
-      : 'この調子で、見本の特徴を楽しみながら描いてみましょう。'
+      ? `${nextPointPrefix}${evaluation.improvements.join('／')}`
+      : (outputLanguage === 'en'
+          ? 'Keep observing the reference and enjoy capturing its defining features.'
+          : 'この調子で、見本の特徴を楽しみながら描いてみましょう。')
+    const problemNumber = outputLanguage === 'en'
+      ? `Copying score ${evaluation.level}/5`
+      : `模写評価 ${evaluation.level}/5`
+    const overallComment = outputLanguage === 'en'
+      ? `${evaluation.label}. ${evaluation.summary}`
+      : `${evaluation.label}。${evaluation.summary}`
 
     res.json({
       success: true,
@@ -263,7 +286,7 @@ app.post('/api/grade-work', async (req, res) => {
       responseTime: Number(((Date.now() - startedAt) / 1000).toFixed(1)),
       result: {
         problems: [{
-          problemNumber: `模写評価 ${evaluation.level}/5`,
+          problemNumber,
           studentAnswer: '',
           isCorrect: true,
           feedback,
@@ -271,7 +294,7 @@ app.post('/api/grade-work', async (req, res) => {
           gradingSource: 'ai',
           confidence: evaluation.level
         }],
-        overallComment: `${evaluation.label}。${evaluation.summary}`
+        overallComment
       }
     })
     console.info('[grade-work:complete]', {
@@ -282,8 +305,10 @@ app.post('/api/grade-work', async (req, res) => {
     })
   } catch (error) {
     const message = error instanceof Error
-      ? (error.name === 'AbortError' ? 'Gemini APIがタイムアウトしました' : error.message)
-      : '採点処理に失敗しました'
+      ? (error.name === 'AbortError'
+          ? (outputLanguage === 'en' ? 'The AI review timed out.' : 'Gemini APIがタイムアウトしました')
+          : error.message)
+      : (outputLanguage === 'en' ? 'The review could not be completed.' : '採点処理に失敗しました')
     console.error('[grade-work:error]', { requestId, message, durationMs: Date.now() - startedAt })
     res.status(500).json({ success: false, error: message })
   }

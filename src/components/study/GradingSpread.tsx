@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import './GradingSpread.css'
 
 interface PanZoomPaneProps {
@@ -195,7 +196,9 @@ const GradingSpread = ({
   isResizing,
   onResizeStart,
   splitContainerRef
-}: GradingSpreadProps) => (
+}: GradingSpreadProps) => {
+  const { t } = useTranslation()
+  return (
   <div ref={splitContainerRef} className="grading-spread">
     {(isSplitView || activeTab === 'A') && (
       <PanZoomPane
@@ -203,7 +206,7 @@ const GradingSpread = ({
         fitMode="contain"
         contentKey={capturedImage}
       >
-        <img className="grading-captured-image" src={capturedImage} alt="採点に使用した見本と模写" draggable={false} />
+        <img className="grading-captured-image" src={capturedImage} alt={t('copiStudy.result.capturedImageAlt')} draggable={false} />
       </PanZoomPane>
     )}
 
@@ -236,6 +239,7 @@ const GradingSpread = ({
       }
     `}</style>
   </div>
-)
+  )
+}
 
 export default GradingSpread

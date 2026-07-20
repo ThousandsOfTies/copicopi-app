@@ -1,4 +1,5 @@
 import { GradingResponseResult } from '@home-teacher/common/services/api'
+import { useTranslation } from 'react-i18next'
 import './GradingResult.css'
 
 interface GradingResultProps {
@@ -21,19 +22,20 @@ const teacherDisplay = {
 } as const
 
 const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind', modelName, responseTime }: GradingResultProps) => {
+  const { t } = useTranslation()
   const teacher = teacherDisplay[teacherMode]
   if (isLoading) {
     return (
       <article className="grading-result-sheet grading-result-loading" aria-live="polite">
         <div className={`grading-teacher-mark teacher-${teacherMode}`}>{teacher.icon}</div>
         <div className="grading-loading-spinner" />
-        <h1>作品を見ています…</h1>
-        <p>見本と模写の構図・形・雰囲気を見比べています。</p>
-        <p className="grading-loading-time">通常10〜30秒ほどです</p>
+        <h1>{t('copiStudy.result.loadingTitle')}</h1>
+        <p>{t('copiStudy.result.loadingDescription')}</p>
+        <p className="grading-loading-time">{t('copiStudy.result.loadingTime')}</p>
         <div className="grading-observation-points">
-          <span>シルエット</span>
-          <span>バランス</span>
-          <span>雰囲気</span>
+          <span>{t('copiStudy.result.silhouette')}</span>
+          <span>{t('copiStudy.result.balance')}</span>
+          <span>{t('copiStudy.result.mood')}</span>
         </div>
       </article>
     )
@@ -43,9 +45,9 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
     return (
       <article className="grading-result-sheet grading-result-error" role="alert">
         <div className={`grading-teacher-mark teacher-${teacherMode}`}>{teacher.icon}</div>
-        <h1>採点できませんでした</h1>
+        <h1>{t('copiStudy.result.errorTitle')}</h1>
         <p>{error}</p>
-        <p className="grading-result-error-hint">PDF画面に戻り、範囲を選び直してもう一度お試しください。</p>
+        <p className="grading-result-error-hint">{t('copiStudy.result.errorHint')}</p>
       </article>
     )
   }
@@ -60,8 +62,11 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
     : (Number.isFinite(levelFromTitle) ? levelFromTitle : null)
   const goodPoints = splitAdvice(problem?.feedback)
   const explanationLines = problem?.explanation?.split('\n').map(line => line.trim()).filter(Boolean) || []
-  const improvementLine = explanationLines.find(line => line.startsWith('次のポイント：'))
-  const improvements = splitAdvice(improvementLine?.replace(/^次のポイント：/, ''))
+  const nextPointPrefix = t('copiStudy.result.nextPointPrefix')
+  const improvementLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith('次のポイント：'))
+  const improvements = splitAdvice(improvementLine
+    ?.replace(nextPointPrefix, '')
+    .replace(/^次のポイント：/, ''))
   const practice = explanationLines.filter(line => line !== improvementLine).join(' ')
 
   return (
@@ -69,10 +74,10 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
       <header className="grading-sheet-header">
         <div>
           <div className={`grading-sheet-kicker teacher-${teacherMode}`}>{teacher.icon} {teacher.label}</div>
-          <h1>模写の振り返り</h1>
+          <h1>{t('copiStudy.result.title')}</h1>
         </div>
         {level && (
-          <div className="grading-score" aria-label={`模写評価 ${level}点、5点満点`}>
+          <div className="grading-score" aria-label={t('copiStudy.result.scoreLabel', { level })}>
             <strong>{level}</strong><span>/ 5</span>
           </div>
         )}
@@ -80,37 +85,37 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
 
       {result?.overallComment && (
         <section className="grading-summary">
-          <h2>全体の印象</h2>
+          <h2>{t('copiStudy.result.overall')}</h2>
           <p>{result.overallComment}</p>
         </section>
       )}
 
       {goodPoints.length > 0 && (
         <section className="grading-advice-section grading-good-points">
-          <h2><span>◎</span> よかったところ</h2>
+          <h2><span>◎</span> {t('copiStudy.result.goodPoints')}</h2>
           <ul>{goodPoints.map((point, index) => <li key={index}>{point}</li>)}</ul>
         </section>
       )}
 
       {improvements.length > 0 && (
         <section className="grading-advice-section grading-improvements">
-          <h2><span>→</span> 次に直すポイント</h2>
+          <h2><span>→</span> {t('copiStudy.result.improvements')}</h2>
           <ol>{improvements.map((point, index) => <li key={index}>{point}</li>)}</ol>
         </section>
       )}
 
       {practice && (
         <section className="grading-practice">
-          <h2>次の一枚でやってみよう</h2>
+          <h2>{t('copiStudy.result.practice')}</h2>
           <p>{practice}</p>
         </section>
       )}
 
-      {!result && <p className="grading-empty-result">採点結果がありません。</p>}
+      {!result && <p className="grading-empty-result">{t('copiStudy.result.empty')}</p>}
 
       {(modelName || responseTime != null) && (
         <footer className="grading-sheet-footer">
-          {modelName}{modelName && responseTime != null ? ' ・ ' : ''}{responseTime != null ? `${responseTime}秒` : ''}
+          {modelName}{modelName && responseTime != null ? ' ・ ' : ''}{responseTime != null ? t('copiStudy.result.seconds', { value: responseTime }) : ''}
         </footer>
       )}
     </article>

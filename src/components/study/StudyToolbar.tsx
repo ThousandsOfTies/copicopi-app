@@ -3,6 +3,7 @@ import { ICON_SVG } from '../../constants/icons';
 import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
+import { useTranslation } from 'react-i18next';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
 export type BrushType = 'solid' | 'watercolor';
@@ -134,6 +135,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     availableModels,
     defaultModelName,
 }) => {
+    const { t } = useTranslation();
     // Popups visibility state
     const [showTextPopup, setShowTextPopup] = useState(false);
     const [showPenPopup, setShowPenPopup] = useState(false);
@@ -495,7 +497,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                 onClick={onGrade}
                                 disabled={isGrading}
                                 className="btn-submit"
-                                title="採点する"
+                                title={t('copiStudy.toolbar.grade')}
+                                aria-label={t('copiStudy.toolbar.grade')}
                                 style={{
                                     cursor: isGrading ? 'wait' : 'pointer',
                                     opacity: isGrading ? 0.6 : 1,
@@ -514,19 +517,21 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     className={`teacher-grade-main teacher-${teacherMode}`}
                                     onClick={startGrading}
                                     disabled={isGrading || !isSplitView}
-                                    title={isSplitView ? `${selectedTeacher.label} teacher checks the current A/B view` : 'A/B表示で採点できます'}
-                                    aria-label={`${selectedTeacher.label}先生で採点`}
+                                    title={isSplitView
+                                        ? t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })
+                                        : t('copiStudy.toolbar.splitRequired')}
+                                    aria-label={t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })}
                                 >
                                     {isGrading ? <FiLoader className="animate-spin" /> : selectedTeacher.icon}
-                                    <span>{isGrading ? 'CHECKING' : selectedTeacher.label}</span>
+                                    <span>{isGrading ? t('copiStudy.toolbar.checking') : selectedTeacher.label}</span>
                                 </button>
                                 <button
                                     type="button"
                                     className={`teacher-grade-menu-button teacher-${teacherMode}`}
                                     onClick={() => setShowTeacherMenu(previous => !previous)}
                                     disabled={isGrading}
-                                    title="先生を選ぶ"
-                                    aria-label="先生を選ぶ"
+                                    title={t('copiStudy.toolbar.chooseTeacher')}
+                                    aria-label={t('copiStudy.toolbar.chooseTeacher')}
                                     aria-expanded={showTeacherMenu}
                                 >
                                     <FiChevronDown />

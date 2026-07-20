@@ -58,7 +58,7 @@ function App() {
           hasUpdate={needRefresh}
           onUpdate={() => updateServiceWorker(true)}
           studyTabLabel="Enjoy"
-          storageIconSrc={`${import.meta.env.BASE_URL}icons/kids/logo.png`}
+          storageIconSrc={`${import.meta.env.BASE_URL}icons/copicopi/logo.png`}
           historyVariant="progress"
           settingsVariant="teachers"
           guideVariant="copy"

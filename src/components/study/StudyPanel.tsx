@@ -337,9 +337,13 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   const getPanelLabel = (panel: PanelData): string => {
     switch (panel.type) {
-      case 'pdf': return '練習'
-      case 'answer': return panel.source === 'grading' ? '質問記入' : '解答記入'
-      case 'grading': return panel.status === 'loading' ? '採点中' : '採点結果'
+      case 'pdf': return t('copiStudy.breadcrumb.practice')
+      case 'answer': return panel.source === 'grading'
+        ? t('copiStudy.breadcrumb.question')
+        : t('copiStudy.breadcrumb.answer')
+      case 'grading': return panel.status === 'loading'
+        ? t('copiStudy.breadcrumb.checking')
+        : t('copiStudy.breadcrumb.result')
     }
   }
 
@@ -891,7 +895,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       await new Promise((resolve, reject) => {
         img.onload = () => {
           if (img.width < 50 || img.height < 50) {
-            setGradingError('選択範囲が小さすぎます。もう少し大きく選択してください。')
+            setGradingError(t('copiStudy.status.imageTooSmall'))
             setIsGrading(false)
             reject(new Error('Image too small'))
           } else {
@@ -899,7 +903,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           }
         }
         img.onerror = () => {
-          setGradingError('画像の読み込みに失敗しました。')
+          setGradingError(t('copiStudy.status.imageLoadFailed'))
           setIsGrading(false)
           reject(new Error('Image load error'))
         }
@@ -917,7 +921,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       })
 
       // APIに送信（簡素化：切り抜き画像のみ）
-      addStatusMessage('🎯 先生が作品を見ています...')
+      addStatusMessage(t('copiStudy.status.teacherReviewing'))
       const startTime = Date.now()
       const response = await gradeWork(
         croppedImageData,
@@ -931,8 +935,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       const clientResponseTimeSeconds = parseFloat(((endTime - startTime) / 1000).toFixed(1))
 
       if (!response.success) {
-        setGradingError(response.error || "採点に失敗しました")
-        throw new Error(response.error || "採点に失敗しました")
+        setGradingError(response.error || t('copiStudy.status.reviewFailed'))
+        throw new Error(response.error || t('copiStudy.status.reviewFailed'))
       }
 
       setGradingError(null)
@@ -951,7 +955,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         modelName: response.modelName ?? null,
         responseTime: response.responseTime ?? clientResponseTimeSeconds
       })
-      addStatusMessage('✅ 採点が終わりました')
+      addStatusMessage(t('copiStudy.status.reviewComplete'))
 
       // 採点履歴を保存
       if (response.result.problems?.length) {
@@ -965,7 +969,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             ? scoreFromConfidence
             : (Number.isFinite(scoreFromTitle) ? scoreFromTitle : undefined)
           const explanationLines = problem.explanation?.split('\n').map(line => line.trim()).filter(Boolean) || []
-          const nextPointLine = explanationLines.find(line => line.startsWith('次のポイント：'))
+          const nextPointPrefix = t('copiStudy.result.nextPointPrefix')
+          const nextPointLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith('次のポイント：'))
           const historyRecord = {
             id: generateGradingHistoryId(),
             pdfId,
@@ -982,7 +987,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             teacherMode: selectedTeacherMode,
             score,
             overallComment: response.result.overallComment || '',
-            nextPoint: nextPointLine?.replace(/^次のポイント：/, '') || '',
+            nextPoint: nextPointLine?.replace(nextPointPrefix, '').replace(/^次のポイント：/, '') || '',
             practiceAdvice: explanationLines.filter(line => line !== nextPointLine).join(' '),
             matchingMetadata: problem.matchingMetadata
           }
@@ -1068,7 +1073,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     const currentPanel = panelStack[activePanelIndex]
     if (currentPanel?.type !== 'pdf' || !containerRef.current) return
     if (!isSplitView) {
-      addStatusMessage('A/B表示で採点できます')
+      addStatusMessage(t('copiStudy.status.splitRequired'))
       return
     }
 
@@ -1625,42 +1630,60 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         })}
       </div>
 
-      {isDrawingMode && !isSelectionMode && (
-        <aside className="brush-control-rail" aria-label="ペンの太さと濃さ">
-          <label className="brush-vertical-control" title={`太さ ${penSize}px`}>
-            <span className="brush-control-preview brush-size-preview" style={{ width: `${Math.min(18, 5 + penSize * 0.13)}px`, height: `${Math.min(18, 5 + penSize * 0.13)}px` }} />
-            <input
-              type="range"
-              min="1"
-              max="100"
-              value={penSize}
-              aria-label="ペンの太さ"
-              aria-valuetext={`${penSize}px`}
-              onChange={(event) => setPenSize(Number(event.target.value))}
-            />
-            <output>{penSize}</output>
-          </label>
-          <label className="brush-vertical-control" title={`濃さ ${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}>
-            <FiDroplet className="brush-opacity-icon" aria-hidden="true" />
-            <input
-              type="range"
-              min="10"
-              max="100"
-              value={brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}
-              aria-label="ペンの濃さ"
-              aria-valuetext={`${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}
-              onChange={(event) => {
-                const opacity = Number(event.target.value) / 100
-                if (opacity >= 1) {
-                  setBrushType('solid')
-                } else {
-                  setWatercolorOpacity(opacity)
-                  setBrushType('watercolor')
-                }
-              }}
-            />
-            <output>{brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}</output>
-          </label>
+      {(isDrawingMode || isEraserMode) && !isSelectionMode && (
+        <aside className={`brush-control-rail${isEraserMode ? ' is-eraser' : ''}`} aria-label={isEraserMode ? '消しゴムの大きさ' : 'ペンの太さと濃さ'}>
+          {isEraserMode ? (
+            <label className="brush-vertical-control eraser-vertical-control" title={`消しゴム ${eraserSize}px`}>
+              <input
+                type="range"
+                min="10"
+                max="300"
+                step="5"
+                value={eraserSize}
+                aria-label="消しゴムの大きさ"
+                aria-valuetext={`${eraserSize}px`}
+                onChange={(event) => setEraserSize(Number(event.target.value))}
+              />
+              <output>{eraserSize}</output>
+            </label>
+          ) : (
+            <>
+              <label className="brush-vertical-control" title={`太さ ${penSize}px`}>
+                <span className="brush-control-preview brush-size-preview" style={{ width: `${Math.min(18, 5 + penSize * 0.13)}px`, height: `${Math.min(18, 5 + penSize * 0.13)}px` }} />
+                <input
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={penSize}
+                  aria-label="ペンの太さ"
+                  aria-valuetext={`${penSize}px`}
+                  onChange={(event) => setPenSize(Number(event.target.value))}
+                />
+                <output>{penSize}</output>
+              </label>
+              <label className="brush-vertical-control" title={`濃さ ${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}>
+                <FiDroplet className="brush-opacity-icon" aria-hidden="true" />
+                <input
+                  type="range"
+                  min="10"
+                  max="100"
+                  value={brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}
+                  aria-label="ペンの濃さ"
+                  aria-valuetext={`${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}
+                  onChange={(event) => {
+                    const opacity = Number(event.target.value) / 100
+                    if (opacity >= 1) {
+                      setBrushType('solid')
+                    } else {
+                      setWatercolorOpacity(opacity)
+                      setBrushType('watercolor')
+                    }
+                  }}
+                />
+                <output>{brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}</output>
+              </label>
+            </>
+          )}
         </aside>
       )}
 

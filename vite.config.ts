@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
 
   console.log(`📦 Building ${appName} (mode: ${mode}, hash: ${commitHash})`)
 
-  const iconSource = 'public/icons/kids'
+  const iconSource = 'public/icons/copicopi'
 
   return {
     base: basePath,

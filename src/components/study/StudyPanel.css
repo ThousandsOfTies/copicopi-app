@@ -836,6 +836,15 @@
   text-align: center;
 }
 
+/* 消しゴムは最大300pxでも実寸プレビューを置かず、レール幅を一定に保つ。 */
+.brush-control-rail.is-eraser .eraser-vertical-control {
+  grid-template-rows: 480px 17px;
+}
+
+.brush-control-rail.is-eraser .eraser-vertical-control input[type='range'] {
+  height: 480px;
+}
+
 .brush-control-preview {
   display: block;
   border-radius: 50%;
@@ -1002,6 +1011,14 @@
 
   .brush-vertical-control input[type='range'] {
     height: 78px;
+  }
+
+  .brush-control-rail.is-eraser .eraser-vertical-control {
+    grid-template-rows: 174px 16px;
+  }
+
+  .brush-control-rail.is-eraser .eraser-vertical-control input[type='range'] {
+    height: 174px;
   }
 }
 
