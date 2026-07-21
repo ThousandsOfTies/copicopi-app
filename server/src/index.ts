@@ -7,7 +7,7 @@ import path from 'node:path'
 import Stripe from 'stripe'
 
 const PORT = Number(process.env.PORT || 3003)
-const MODEL_ID = 'gemini-3.5-flash'
+const MODEL_ID = 'gemini-3.6-flash'
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://127.0.0.1:3000')
   .split(',')
@@ -181,7 +181,7 @@ app.get('/health', (_req, res) => {
 app.get('/api/models', (_req, res) => {
   res.json({
     default: MODEL_ID,
-    models: [{ id: MODEL_ID, name: 'Gemini 3.5 Flash', description: '模写の雰囲気を総合評価' }]
+    models: [{ id: MODEL_ID, name: 'Gemini 3.6 Flash', description: '模写の雰囲気を総合評価' }]
   })
 })
 

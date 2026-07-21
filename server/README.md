@@ -1,6 +1,6 @@
 # CopiCopi API
 
-CopiCopiのAB左右キャプチャーをGemini 3.5 Flashで評価する専用APIです。
+CopiCopiのAB左右キャプチャーをGemini 3.6 Flashで評価する専用APIです。
 
 ## ローカル起動
 
