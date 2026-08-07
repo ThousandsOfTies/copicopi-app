@@ -10,6 +10,8 @@ export type BrushType = 'solid' | 'watercolor';
 export type StrokeStyle = 'pencil' | 'marker' | 'brush';
 export type TeacherMode = 'kind' | 'balanced' | 'strict';
 
+const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+
 export interface BreadcrumbItem {
     label: string;
     onClick: () => void;
@@ -345,12 +347,13 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     <label>サイズ:</label>
                                     <input
                                         type="range"
-                                        min="10"
-                                        max="300"
-                                        step="5"
-                                        value={eraserSize}
-                                        onChange={(e) => setEraserSize(Number(e.target.value))}
+                                        min="0"
+                                        max={ERASER_SIZE_OPTIONS.length - 1}
+                                        step="1"
+                                        value={Math.max(0, ERASER_SIZE_OPTIONS.indexOf(eraserSize as typeof ERASER_SIZE_OPTIONS[number]))}
+                                        onChange={(e) => setEraserSize(ERASER_SIZE_OPTIONS[Number(e.target.value)])}
                                         style={{ width: '100px' }}
+                                        aria-valuetext={`${eraserSize}px`}
                                     />
                                     <span>{eraserSize}px</span>
                                 </div>

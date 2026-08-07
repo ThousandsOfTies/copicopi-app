@@ -736,11 +736,24 @@
 .pen-color-picker {
   width: 44px;
   height: 32px;
-  padding: 2px;
+  padding: 0;
   border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  background: white;
+  border-radius: 3px;
+  overflow: hidden;
+  background: transparent;
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.pen-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.pen-color-picker::-webkit-color-swatch,
+.pen-color-picker::-moz-color-swatch {
+  border: 0;
+  border-radius: 0;
 }
 
 .color-preset-grid {
@@ -836,13 +849,13 @@
   text-align: center;
 }
 
-/* 消しゴムは最大300pxでも実寸プレビューを置かず、レール幅を一定に保つ。 */
+/* 消しゴムもペンと同じ高さにして、PDFの表示領域を圧迫しない。 */
 .brush-control-rail.is-eraser .eraser-vertical-control {
-  grid-template-rows: 480px 17px;
+  grid-template-rows: 220px 17px;
 }
 
 .brush-control-rail.is-eraser .eraser-vertical-control input[type='range'] {
-  height: 480px;
+  height: 220px;
 }
 
 .brush-control-preview {
@@ -1014,11 +1027,11 @@
   }
 
   .brush-control-rail.is-eraser .eraser-vertical-control {
-    grid-template-rows: 174px 16px;
+    grid-template-rows: 78px 16px;
   }
 
   .brush-control-rail.is-eraser .eraser-vertical-control input[type='range'] {
-    height: 174px;
+    height: 78px;
   }
 }
 

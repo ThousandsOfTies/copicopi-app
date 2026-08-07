@@ -36,18 +36,8 @@ interface StudyPanelProps {
   onBack?: () => void
 }
 
-type PDFRenderMode = 'legacy' | 'adaptive'
-const PDF_RENDER_MODE_STORAGE_KEY = 'copicopi.pdfRenderMode'
 const SPLIT_RATIO_STORAGE_KEY = 'copicopi.splitRatio'
-
-const resolvePDFRenderMode = (): PDFRenderMode => {
-  const requestedMode = new URLSearchParams(window.location.search).get('pdfRenderMode')
-  if (requestedMode === 'legacy' || requestedMode === 'adaptive') {
-    localStorage.setItem(PDF_RENDER_MODE_STORAGE_KEY, requestedMode)
-    return requestedMode
-  }
-  return localStorage.getItem(PDF_RENDER_MODE_STORAGE_KEY) === 'legacy' ? 'legacy' : 'adaptive'
-}
+const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
 
 type PanelData =
   | { type: 'pdf' }
@@ -94,9 +84,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Layout State
   // CopiCopi は見本（A面）と描画面（B面）を並べて使うため、左右開きを初期表示にする。
   const [isSplitView, setIsSplitView] = useState(true)
-  // Emergency rollback: open once with ?pdfRenderMode=legacy. The selection is
-  // persisted on the device; ?pdfRenderMode=adaptive switches it back.
-  const [pdfRenderMode] = useState<PDFRenderMode>(resolvePDFRenderMode)
   const [isPanesReversed, setIsPanesReversed] = useState(false)
   const [activeTab, setActiveTab] = useState<'A' | 'B'>('A')
 
@@ -1478,7 +1465,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={drawingPathsA}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
-            renderMode={pdfRenderMode}
             onPageChange={handlePageAChange}
             onPathAdd={() => {}}
             onPathsChange={() => {}}
@@ -1531,7 +1517,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
-            renderMode={pdfRenderMode}
             onPageChange={handlePageBChange}
             onPathAdd={(path) => handlePathAddB(pageB, path)}
             onPathsChange={(paths) => handlePathsChangeB(pageB, paths)}
@@ -1634,15 +1619,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         <aside className={`brush-control-rail${isEraserMode ? ' is-eraser' : ''}`} aria-label={isEraserMode ? '消しゴムの大きさ' : 'ペンの太さと濃さ'}>
           {isEraserMode ? (
             <label className="brush-vertical-control eraser-vertical-control" title={`消しゴム ${eraserSize}px`}>
-              <input
-                type="range"
-                min="10"
-                max="300"
-                step="5"
-                value={eraserSize}
-                aria-label="消しゴムの大きさ"
-                aria-valuetext={`${eraserSize}px`}
-                onChange={(event) => setEraserSize(Number(event.target.value))}
+                <input
+                  type="range"
+                  min="0"
+                  max={ERASER_SIZE_OPTIONS.length - 1}
+                  step="1"
+                  value={Math.max(0, ERASER_SIZE_OPTIONS.indexOf(eraserSize as typeof ERASER_SIZE_OPTIONS[number]))}
+                  aria-label="消しゴムの大きさ"
+                  aria-valuetext={`${eraserSize}px`}
+                  onChange={(event) => setEraserSize(ERASER_SIZE_OPTIONS[Number(event.target.value)])}
               />
               <output>{eraserSize}</output>
             </label>
@@ -1653,7 +1638,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                 <input
                   type="range"
                   min="1"
-                  max="100"
+                  max="10"
+                  step="1"
                   value={penSize}
                   aria-label="ペンの太さ"
                   aria-valuetext={`${penSize}px`}
