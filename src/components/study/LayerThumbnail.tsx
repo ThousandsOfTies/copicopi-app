@@ -5,6 +5,7 @@ interface LayerThumbnailProps {
   paths: DrawingPath[]
   sourceWidth?: number
   sourceAspectRatio?: number
+  layerOpacity?: number
 }
 
 const PREVIEW_WIDTH = 72
@@ -14,6 +15,7 @@ export const LayerThumbnail = ({
   paths,
   sourceWidth = 1000,
   sourceAspectRatio = PREVIEW_WIDTH / PREVIEW_HEIGHT,
+  layerOpacity = 1,
 }: LayerThumbnailProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -47,7 +49,7 @@ export const LayerThumbnail = ({
       context.save()
       context.strokeStyle = path.color
       context.fillStyle = path.color
-      context.globalAlpha = path.opacity ?? 1
+      context.globalAlpha = (path.opacity ?? 1) * layerOpacity
       context.lineCap = 'round'
       context.lineJoin = 'round'
 
@@ -93,7 +95,7 @@ export const LayerThumbnail = ({
       context.stroke()
       context.restore()
     })
-  }, [paths, sourceAspectRatio, sourceWidth])
+  }, [layerOpacity, paths, sourceAspectRatio, sourceWidth])
 
   return (
     <div className="drawing-layer-thumbnail" aria-hidden="true">

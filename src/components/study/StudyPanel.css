@@ -383,7 +383,15 @@
 
 /* CopiCopi B pane is a blank drawing surface, not a hidden PDF page. */
 .pane-b .canvas-wrapper {
+  background-color: #dfe4e1;
+}
+
+/* Keep the paper edge visible without changing the canvas coordinate size. */
+.pane-b .drawing-canvas:not([aria-hidden='true']) {
   background-color: #fff;
+  box-shadow:
+    inset 0 0 0 2px rgba(67, 82, 73, 0.58),
+    0 5px 16px rgba(37, 49, 42, 0.22);
 }
 
 .canvas-layer {
@@ -957,9 +965,6 @@
 .drawing-layer-row.active { border-color: #75b88f; background: #eaf5ed; }
 .drawing-layer-row.hidden .drawing-layer-copy { opacity: .48; }
 .drawing-layer-row.hidden .drawing-layer-thumbnail { opacity: .5; }
-.drawing-layer-row[draggable='true'] { cursor: grab; }
-.drawing-layer-row[draggable='true']:active { cursor: grabbing; }
-
 .drawing-layer-copy { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .drawing-layer-thumbnail {
@@ -1004,8 +1009,55 @@
 .drawing-layer-copy input:focus { outline: none; border-color: #8fc5a3; background: white; }
 .drawing-layer-copy small { padding-left: 5px; color: #8a968e; font-size: 9px; }
 
+.drawing-layer-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.drawing-layer-meta > small {
+  min-width: 24px;
+  padding-left: 5px;
+}
+
+.drawing-layer-opacity {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: 12px minmax(42px, 1fr) 30px;
+  align-items: center;
+  gap: 3px;
+  color: #568069;
+  cursor: default;
+}
+
+.drawing-layer-opacity svg {
+  width: 11px;
+  height: 11px;
+}
+
+.drawing-layer-opacity input[type='range'] {
+  width: 100%;
+  min-width: 42px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  accent-color: #4b9d6b;
+  cursor: ew-resize;
+}
+
+.drawing-layer-opacity output {
+  color: #68776e;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .drawing-layer-order-actions { gap: 0; }
 .drawing-layer-order-actions button { width: 25px; height: 28px; }
+.drawing-layer-order-actions .drawing-layer-drag-handle { cursor: grab; }
+.drawing-layer-order-actions .drawing-layer-drag-handle:active { cursor: grabbing; }
 .drawing-layer-order-actions button:last-child:hover:not(:disabled) { color: #c94a4a; background: #fff0f0; }
 
 .drawing-layer-hint {

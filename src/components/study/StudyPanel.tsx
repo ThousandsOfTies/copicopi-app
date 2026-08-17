@@ -14,7 +14,7 @@ import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
 import './StudyPanel.css'
 import { compressImageDataUrl } from '@home-teacher/common/utils/image'
 import { useAuth } from '@home-teacher/common/contexts/AuthContext'
-import { FiChevronDown, FiChevronUp, FiDroplet, FiEye, FiEyeOff, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
+import { FiChevronDown, FiChevronUp, FiDroplet, FiEye, FiEyeOff, FiMove, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import { createDefaultLayer, DrawingLayer, MAX_DRAWING_LAYERS, normalizeLayeredDrawing, serializeLayeredDrawing, sortPathsByLayer } from './layers'
 import { LayerThumbnail } from './LayerThumbnail'
 
@@ -38,6 +38,9 @@ interface StudyPanelProps {
 
 const SPLIT_RATIO_STORAGE_KEY = 'copicopi.splitRatio'
 const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
+// PDF points (72 dpi). A3 landscape has the same sqrt(2):1 aspect ratio and
+// therefore the same on-screen proportions when fitted to the pane.
+const A4_LANDSCAPE_CANVAS_SIZE = { width: 841.89, height: 595.28 }
 
 type PanelData =
   | { type: 'pdf' }
@@ -236,6 +239,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const currentLayersB = drawingLayersB.get(pageB) ?? DEFAULT_LAYERS
   const activeLayerIdB = activeLayerIdsB.get(pageB) ?? currentLayersB[currentLayersB.length - 1].id
   const currentAllDrawingPathsB = drawingPathsB.get(pageB) ?? EMPTY_PATHS
+  const currentLayerOpacitiesB = useMemo(
+    () => Object.fromEntries(currentLayersB.map(layer => [layer.id, layer.opacity])),
+    [currentLayersB],
+  )
 
   // Reactのstate更新中にはIndexedDBへ触れず、確定後に最新状態だけを予約保存する。
   useEffect(() => {
@@ -810,6 +817,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       id: `layer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       name: `レイヤー${currentLayersB.length + 1}`,
       visible: true,
+      opacity: 1,
     }
     const nextLayers = [...currentLayersB, layer]
     updateCurrentLayerState(nextLayers)
@@ -830,6 +838,13 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const toggleDrawingLayerVisibility = (layerId: string) => {
     updateCurrentLayerState(currentLayersB.map(layer => (
       layer.id === layerId ? { ...layer, visible: !layer.visible } : layer
+    )))
+  }
+
+  const updateDrawingLayerOpacity = (layerId: string, opacity: number) => {
+    const safeOpacity = Math.max(0, Math.min(1, opacity))
+    updateCurrentLayerState(currentLayersB.map(layer => (
+      layer.id === layerId ? { ...layer, opacity: safeOpacity } : layer
     )))
   }
 
@@ -1506,6 +1521,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             pdfDoc={pdfDoc}
             pageNum={pageB}
             hidePdfBackground
+            blankCanvasSize={A4_LANDSCAPE_CANVAS_SIZE}
             tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
             color={penColor}
             size={penSize}
@@ -1514,6 +1530,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             eraserSize={eraserSize}
             scratchEraseEnabled={false}
             editableLayerId={activeLayerIdB}
+            layerOpacities={currentLayerOpacitiesB}
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
@@ -1697,9 +1714,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                 <div
                   key={layer.id}
                   className={`drawing-layer-row ${activeLayerIdB === layer.id ? 'active' : ''} ${layer.visible ? '' : 'hidden'}`}
-                  draggable
-                  onDragStart={() => setDraggedLayerId(layer.id)}
-                  onDragEnd={() => setDraggedLayerId(null)}
                   onDragOver={event => event.preventDefault()}
                   onDrop={() => {
                     if (draggedLayerId) moveDrawingLayer(draggedLayerId, layer.id)
@@ -1723,6 +1737,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                     paths={layerPaths}
                     sourceWidth={sourceCanvasWidth}
                     sourceAspectRatio={sourceCanvasWidth && sourceCanvasHeight ? sourceCanvasWidth / sourceCanvasHeight : undefined}
+                    layerOpacity={layer.opacity}
                   />
                   <div className="drawing-layer-copy">
                     <input
@@ -1736,9 +1751,43 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                         renameDrawingLayer(layer.id, event.target.value.trim() || `レイヤー${originalIndex + 1}`, true)
                       }}
                     />
-                    <small>{layerPaths.length > 0 ? `${layerPaths.length}本` : '空'}</small>
+                    <div className="drawing-layer-meta">
+                      <small>{layerPaths.length > 0 ? `${layerPaths.length}本` : '空'}</small>
+                      <label
+                        className="drawing-layer-opacity"
+                        title={`レイヤーの濃さ ${Math.round(layer.opacity * 100)}%`}
+                        onClick={event => event.stopPropagation()}
+                        onPointerDown={event => event.stopPropagation()}
+                      >
+                        <FiDroplet aria-hidden="true" />
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={Math.round(layer.opacity * 100)}
+                          aria-label={`${layer.name}の濃さ`}
+                          aria-valuetext={`${Math.round(layer.opacity * 100)}%`}
+                          onChange={event => updateDrawingLayerOpacity(layer.id, Number(event.target.value) / 100)}
+                        />
+                        <output>{Math.round(layer.opacity * 100)}%</output>
+                      </label>
+                    </div>
                   </div>
                   <div className="drawing-layer-order-actions">
+                    <button
+                      type="button"
+                      className="drawing-layer-drag-handle"
+                      draggable
+                      onClick={event => event.stopPropagation()}
+                      onDragStart={event => {
+                        event.stopPropagation()
+                        setDraggedLayerId(layer.id)
+                      }}
+                      onDragEnd={() => setDraggedLayerId(null)}
+                      title="ドラッグして重なり順を変更"
+                      aria-label={`${layer.name}をドラッグして並べ替え`}
+                    ><FiMove /></button>
                     <button type="button" disabled={originalIndex === currentLayersB.length - 1} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'up') }} title="前面へ"><FiChevronUp /></button>
                     <button type="button" disabled={originalIndex === 0} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'down') }} title="背面へ"><FiChevronDown /></button>
                     <button type="button" disabled={currentLayersB.length <= 1} onClick={event => { event.stopPropagation(); deleteDrawingLayer(layer.id) }} title="削除"><FiTrash2 /></button>
@@ -1747,7 +1796,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
               )
             })}
           </div>
-          <p className="drawing-layer-hint">上下ボタンまたはドラッグで重なり順を変更</p>
+          <p className="drawing-layer-hint">上下ボタンまたは移動ハンドルで重なり順を変更</p>
         </aside>
       )}
     </div>

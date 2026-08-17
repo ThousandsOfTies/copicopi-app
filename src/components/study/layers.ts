@@ -7,6 +7,7 @@ export interface DrawingLayer {
   id: string
   name: string
   visible: boolean
+  opacity: number
 }
 
 interface StoredLayeredDrawingPage {
@@ -19,6 +20,7 @@ export const createDefaultLayer = (): DrawingLayer => ({
   id: DEFAULT_LAYER_ID,
   name: 'レイヤー1',
   visible: true,
+  opacity: 1,
 })
 
 export const normalizeLayeredDrawing = (drawingData: string): { layers: DrawingLayer[]; paths: DrawingPath[] } => {
@@ -40,6 +42,9 @@ export const normalizeLayeredDrawing = (drawingData: string): { layers: DrawingL
         id: layer.id,
         name: layer.name?.trim() || `レイヤー${index + 1}`,
         visible: layer.visible !== false,
+        opacity: typeof layer.opacity === 'number' && Number.isFinite(layer.opacity)
+          ? Math.max(0, Math.min(1, layer.opacity))
+          : 1,
       }))
     : []
   const safeLayers = layers.length > 0 ? layers : [createDefaultLayer()]
