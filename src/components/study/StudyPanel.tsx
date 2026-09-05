@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DEFAULT_MODEL_ID } from '@home-teacher/common/constants/grading'
 import { GradingResponseResult, getAvailableModels, gradeWork, ModelInfo } from '@home-teacher/common/services/api'
 import GradingResult from './GradingResult'
 import GradingSpread from './GradingSpread'
@@ -135,7 +136,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // AI Model State
   const [selectedModel, setSelectedModel] = useState<string>('default')
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([])
-  const [defaultModelName, setDefaultModelName] = useState<string>('Gemini 2.0 Flash')
+  const [defaultModelName, setDefaultModelName] = useState<string>(DEFAULT_MODEL_ID)
   const [teacherMode, setTeacherModeState] = useState<TeacherMode>('kind')
   const [enabledTeacherModes, setEnabledTeacherModes] = useState<TeacherMode[]>(['kind'])
 
