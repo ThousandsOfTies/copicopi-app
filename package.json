@@ -5,6 +5,8 @@
   "description": "A local-first reference and drawing workspace",
   "type": "module",
   "scripts": {
+    "test": "npm run test:grading-source",
+    "test:grading-source": "node --test tests/grading-source.test.cjs",
     "dev": "vite",
     "dev:server": "npm --prefix server run dev",
     "build": "vite build",

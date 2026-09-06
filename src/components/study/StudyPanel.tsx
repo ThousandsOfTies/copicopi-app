@@ -45,9 +45,10 @@ const A4_LANDSCAPE_CANVAS_SIZE = { width: 841.89, height: 595.28 }
 
 type PanelData =
   | { type: 'pdf' }
-  | { type: 'answer'; questionImage: string; source?: 'grading' }
+  | { type: 'answer'; questionImage: string; sourcePageNumbers: number[]; source?: 'grading' }
   | {
     type: 'grading'
+    sourcePageNumbers: number[]
     id: string
     capturedImage: string
     teacherMode: TeacherMode
@@ -569,7 +570,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         setIsSelectionMode(false)
         setSelectionRect(null)
         // A面とB面を含む範囲キャプチャー1枚を、そのまま模写評価へ送る。
-        await confirmAndGrade(capturedImage)
+        await confirmAndGrade(capturedImage.image, capturedImage.sourcePageNumbers)
       } else {
         addStatusMessage("❌ 画像のキャプチャに失敗しました")
         setSelectionRect(null)
@@ -609,6 +610,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }
 
   const handleGradingCaptureEnd = async () => {
+    const sourcePanel = panelStack[activePanelIndex]
+    if (sourcePanel?.type !== 'grading') return
     if (!isGradingCapturingRef.current || !gradingCaptureRect || !gradingPanelRef.current) return
     isGradingCapturingRef.current = false
 
@@ -656,7 +659,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       )
 
       const capturedImage = cropCanvas.toDataURL('image/png')
-      pushPanel({ type: 'answer', questionImage: capturedImage, source: 'grading' })
+      pushPanel({ type: 'answer', questionImage: capturedImage, sourcePageNumbers: sourcePanel.sourcePageNumbers, source: 'grading' })
       setIsGradingCaptureMode(false)
       setGradingCaptureRect(null)
     } catch (error) {
@@ -681,11 +684,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     tempCanvas.height = rect.height
     const ctx = tempCanvas.getContext('2d')
     if (!ctx) return null
+    const sourcePageNumbers: number[] = []
     ctx.fillStyle = '#ffffff'
     ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
 
     // ペインからキャプチャするヘルパー
-    const captureFromPane = (paneRef: React.RefObject<PDFPaneHandle>, paneClassName: string) => {
+    const captureFromPane = (paneRef: React.RefObject<PDFPaneHandle>, paneClassName: string, pageNumber: number) => {
       const paneEl = containerRef.current?.querySelector(`.${paneClassName}`)
       const compositeCanvas = paneRef.current?.getCanvas()
       const visibleCanvas = paneEl?.querySelector('.pdf-canvas') as HTMLCanvasElement | null
@@ -725,17 +729,18 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       const dy = intersectY - selectionScreenY
 
       ctx.drawImage(compositeCanvas, sx, sy, sw, sh, dx, dy, intersectW, intersectH)
+      if (!sourcePageNumbers.includes(pageNumber)) sourcePageNumbers.push(pageNumber)
     }
 
     if (activeTab === 'A' || isSplitView) {
-      captureFromPane(paneARef, 'pane-a')
+      captureFromPane(paneARef, 'pane-a', pageA)
     }
 
     if (activeTab === 'B' || isSplitView) {
-      captureFromPane(paneBRef, 'pane-b')
+      captureFromPane(paneBRef, 'pane-b', pageB)
     }
 
-    return tempCanvas.toDataURL('image/png')
+    return sourcePageNumbers.length ? { image: tempCanvas.toDataURL('image/png'), sourcePageNumbers } : null
   }
 
 
@@ -884,7 +889,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   }
 
   // 採点確定ハンドラ
-  const confirmAndGrade = async (compositeImage: string, selectedTeacherMode: TeacherMode = teacherMode) => {
+  const confirmAndGrade = async (compositeImage: string, sourcePageNumbers: number[], selectedTeacherMode: TeacherMode = teacherMode) => {
     setIsGrading(true)
     setGradingError(null)
     let gradingPanelId: string | null = null
@@ -915,6 +920,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       gradingPanelId = `grading-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       pushPanel({
         type: 'grading',
+        sourcePageNumbers,
         id: gradingPanelId,
         capturedImage: croppedImageData,
         teacherMode: selectedTeacherMode,
@@ -978,7 +984,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             id: generateGradingHistoryId(),
             pdfId,
             pdfFileName: pdfRecord.fileName,
-            pageNumber: pageA,
+            pageNumber: sourcePageNumbers[0],
+            sourcePageNumbers,
             problemNumber: problem.problemNumber,
             studentAnswer: problem.studentAnswer,
             isCorrect: problem.isCorrect || false,
@@ -1012,8 +1019,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   // Grade handler called from toolbar
   const handleGradeFromToolbar = async () => {
+    const sourcePanel = panelStack[activePanelIndex]
+    if (sourcePanel?.type !== 'answer') return
     const compositeImage = await answerPanelRef.current?.getCompositeImage()
-    if (compositeImage) await confirmAndGrade(compositeImage, teacherMode)
+    if (compositeImage) await confirmAndGrade(compositeImage, sourcePanel.sourcePageNumbers, teacherMode)
   }
 
   // プレビューのキャンセル
@@ -1091,7 +1100,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       setGradingError('現在のA/B画面をキャプチャーできませんでした。')
       return
     }
-    await confirmAndGrade(capturedImage, teacherMode)
+    await confirmAndGrade(capturedImage.image, capturedImage.sourcePageNumbers, teacherMode)
   }
 
   // テキストモードのトグル
