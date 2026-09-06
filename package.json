@@ -5,6 +5,7 @@
   "description": "A local-first reference and drawing workspace",
   "type": "module",
   "scripts": {
+    "test:bundle": "node ../home-teacher-common/build/checkDeferredAssets.mjs dist",
     "test": "npm run test:grading-source",
     "test:grading-source": "node --test tests/grading-source.test.cjs",
     "dev": "vite",

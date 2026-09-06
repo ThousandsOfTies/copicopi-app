@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import AdminPanel from '@home-teacher/common/components/admin/AdminPanel'
 import StudyPanel from './components/study/StudyPanel'
-import PDFEditorPanel from '@home-teacher/common/components/admin/PDFEditorPanel'
+import PDFEditorPanel from '@home-teacher/common/components/admin/PDFEditorLoader'
 import { PDFFileRecord } from '@home-teacher/common/utils/indexedDB'
 import { useAppInitializer } from '@home-teacher/common/hooks/useAppInitializer'
 
@@ -14,9 +14,9 @@ function App() {
   const { isInitialized, initialView, initialPDF, settingsVersion } = useAppInitializer()
 
   useEffect(() => {
-    if (isInitialized && initialView === 'viewer' && initialPDF) {
+    if (isInitialized && initialView !== 'admin' && initialPDF) {
       setSelectedPDF(initialPDF)
-      setCurrentView('viewer')
+      setCurrentView(initialView)
     }
   }, [isInitialized, initialView, initialPDF])
 

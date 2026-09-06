@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
+import { createDeferredAssets } from '../home-teacher-common/build/deferredAssets.mjs'
 
 import { execSync } from 'child_process'
 
@@ -11,6 +12,7 @@ const commitHash = execSync('git rev-parse --short HEAD', { cwd: __dirname }).to
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  const deferredAssets = createDeferredAssets()
   // 環境変数を読み込む
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   const basePath = env.VITE_APP_BASE || (process.env.NODE_ENV === 'production'
@@ -39,6 +41,7 @@ export default defineConfig(({ mode }) => {
       dedupe: ['i18next', 'react-i18next', 'react', 'react-dom']
     },
     plugins: [
+      deferredAssets.plugin,
       react(),
       viteStaticCopy({
         targets: [
@@ -68,6 +71,7 @@ export default defineConfig(({ mode }) => {
 
         manifest: false,
         workbox: {
+          manifestTransforms: [deferredAssets.manifestTransform],
           cleanupOutdatedCaches: true,
           skipWaiting: false,
           clientsClaim: false,
@@ -76,6 +80,15 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,png,svg,woff,woff2}'],
           maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
           runtimeCaching: [
+            {
+              urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.(?:js|css)$/.test(url.pathname),
+              handler: 'CacheFirst',
+              options: {
+                cacheName: `${appName}-on-demand-assets-v1`,
+                cacheableResponse: { statuses: [200] },
+                expiration: { maxEntries: 64, maxAgeSeconds: 90 * 24 * 60 * 60 }
+              }
+            },
             {
               urlPattern: /manage\.html/, // <--- manage.htmlは常に最新を確認
               handler: 'NetworkFirst',
