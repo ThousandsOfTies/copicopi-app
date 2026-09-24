@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ICON_SVG } from '../../constants/icons';
 import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
-import { BiBrush, BiEraser, BiHighlight, BiPalette, BiPencil, BiSolidCircle } from 'react-icons/bi';
+import { BiBrush, BiEraser, BiHighlight, BiPaint, BiPalette, BiPen, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
+import type { StrokeStyle } from '@thousands-of-ties/drawing-common';
 
 export type TextDirection = 'horizontal' | 'vertical-rl' | 'vertical-lr';
 export type BrushType = 'solid' | 'watercolor';
-export type StrokeStyle = 'pencil' | 'marker' | 'brush';
+export type { StrokeStyle } from '@thousands-of-ties/drawing-common';
 export type TeacherMode = 'kind' | 'balanced' | 'strict';
 
 const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
@@ -164,12 +165,22 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
         opacity: isDrawingMode ? penIconOpacity : 1,
         filter: isDrawingMode && penColor.toLowerCase() === '#ffffff' ? 'drop-shadow(0 0 1px #475569)' : undefined,
     };
-    const activePenIcon = strokeStyle === 'marker'
-        ? <BiHighlight size={21} style={penIconStyle} />
-        : strokeStyle === 'brush'
-            ? <BiBrush size={21} style={penIconStyle} />
-            : <BiPencil size={21} style={penIconStyle} />;
-    const strokeStyleLabel = strokeStyle === 'marker' ? 'マーカー' : strokeStyle === 'brush' ? '筆' : 'えんぴつ';
+    const penIcons: Record<StrokeStyle, React.ReactNode> = {
+        pencil: <BiPencil size={21} style={penIconStyle} />,
+        marker: <BiHighlight size={21} style={penIconStyle} />,
+        brush: <BiBrush size={21} style={penIconStyle} />,
+        calligraphy: <BiPen size={21} style={penIconStyle} />,
+        crayon: <BiPaint size={21} style={penIconStyle} />,
+    };
+    const strokeStyleLabels: Record<StrokeStyle, string> = {
+        pencil: 'えんぴつ',
+        marker: 'マーカー',
+        brush: '筆',
+        calligraphy: 'カリグラフィー',
+        crayon: 'クレヨン',
+    };
+    const activePenIcon = penIcons[strokeStyle];
+    const strokeStyleLabel = strokeStyleLabels[strokeStyle];
 
     useEffect(() => {
         if (!showTeacherMenu) return;
@@ -321,6 +332,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                         <button type="button" aria-label="えんぴつ" title="えんぴつ" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                         <button type="button" aria-label="マーカー" title="マーカー" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                         <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label="カリグラフィー" title="カリグラフィー（斜めの平筆）" className={strokeStyle === 'calligraphy' ? 'active' : ''} onClick={() => setStrokeStyle('calligraphy')}><BiPen size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label="クレヨン" title="クレヨン（ざらついた線）" className={strokeStyle === 'crayon' ? 'active' : ''} onClick={() => setStrokeStyle('crayon')}><BiPaint size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                     </div>
                                 </div>
                                 <p className="pen-setting-hint">

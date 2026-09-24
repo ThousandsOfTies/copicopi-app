@@ -8,7 +8,7 @@ import GradingSpread from './GradingSpread'
 import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
 import { deleteAllDrawings, flushDrawingSaves, getAllDrawings, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveGradingImage, scheduleDrawingSave, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
 import { ICON_SVG } from '../../constants/icons'
-import { DrawingPath } from '@thousands-of-ties/drawing-common'
+import { drawAdditionalStrokeStyle, type DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
 import { StudyToolbar, BreadcrumbItem, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
 import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
@@ -42,6 +42,18 @@ const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as cons
 // PDF points (72 dpi). A3 landscape has the same sqrt(2):1 aspect ratio and
 // therefore the same on-screen proportions when fitted to the pane.
 const A4_LANDSCAPE_CANVAS_SIZE = { width: 841.89, height: 595.28 }
+
+const drawCopiPreviewStroke = (
+  context: CanvasRenderingContext2D,
+  path: DrawingPath,
+  canvasWidth: number,
+  canvasHeight: number,
+  renderScale: number,
+) => drawAdditionalStrokeStyle(context, path, {
+  scaleX: canvasWidth,
+  scaleY: canvasHeight,
+  widthScale: renderScale,
+})
 
 type PanelData =
   | { type: 'pdf' }
@@ -1486,6 +1498,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             size={penSize}
             opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
             strokeStyle={strokeStyle}
+            drawPreviewStroke={drawCopiPreviewStroke}
             eraserSize={eraserSize}
             drawingPaths={drawingPathsA}
             isCtrlPressed={isCtrlPressed}
@@ -1537,6 +1550,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             size={penSize}
             opacity={brushType === 'watercolor' ? watercolorOpacity : 1}
             strokeStyle={strokeStyle}
+            drawPreviewStroke={drawCopiPreviewStroke}
             eraserSize={eraserSize}
             scratchEraseEnabled={false}
             editableLayerId={activeLayerIdB}
@@ -1897,6 +1911,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   questionImage={panel.questionImage}
                   penColor={penColor}
                   penSize={penSize}
+                  strokeStyle={strokeStyle}
                   isEraserMode={isEraserMode}
                   eraserSize={eraserSize}
                   onCanUndoChange={setCanUndoAnswer}

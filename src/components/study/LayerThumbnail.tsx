@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { DrawingPath } from '@thousands-of-ties/drawing-common'
+import { drawAdditionalStrokeStyle, type DrawingPath } from '@thousands-of-ties/drawing-common'
 
 interface LayerThumbnailProps {
   paths: DrawingPath[]
@@ -56,6 +56,17 @@ export const LayerThumbnail = ({
       const toX = (x: number) => offsetX + x * pageWidth
       const toY = (y: number) => offsetY + y * pageHeight
       const scaledWidth = (width?: number) => Math.max(0.65, (width ?? path.width) * widthScale)
+
+      if (drawAdditionalStrokeStyle(context, path, {
+        scaleX: pageWidth,
+        scaleY: pageHeight,
+        widthScale,
+        offsetX,
+        offsetY,
+      })) {
+        context.restore()
+        return
+      }
 
       if (points.length === 1) {
         context.beginPath()

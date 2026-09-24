@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { ICON_SVG } from '../../constants/icons'
+import { drawAdditionalStrokeStyle, type StrokeStyle } from '@thousands-of-ties/drawing-common'
 import './AnswerPanel.css'
 
 export interface AnswerPanelHandle {
@@ -13,6 +14,7 @@ interface AnswerPanelProps {
   questionImage: string | null
   penColor: string
   penSize: number
+  strokeStyle: StrokeStyle
   isEraserMode: boolean
   eraserSize: number
   onCanUndoChange?: (canUndo: boolean) => void
@@ -28,6 +30,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   questionImage,
   penColor,
   penSize,
+  strokeStyle,
   isEraserMode,
   eraserSize,
   onCanUndoChange,
@@ -203,17 +206,34 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     const rect = canvas.getBoundingClientRect()
     const scale = canvas.width / rect.width
 
-    ctx.beginPath()
-    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
-    ctx.lineTo(pos.x, pos.y)
     if (isEraserMode) {
       ctx.globalCompositeOperation = 'destination-out'
       ctx.lineWidth = eraserSize * scale
+    } else if (strokeStyle === 'calligraphy' || strokeStyle === 'crayon') {
+      ctx.globalCompositeOperation = 'source-over'
+      drawAdditionalStrokeStyle(ctx, {
+        points: [lastPosRef.current, pos].map(point => ({
+          x: point.x / canvas.width,
+          y: point.y / canvas.height,
+        })),
+        color: penColor,
+        width: penSize * scale,
+        style: strokeStyle,
+      }, {
+        scaleX: canvas.width,
+        scaleY: canvas.height,
+        widthScale: 1,
+      })
+      lastPosRef.current = pos
+      return
     } else {
       ctx.globalCompositeOperation = 'source-over'
       ctx.strokeStyle = penColor
       ctx.lineWidth = penSize * scale
     }
+    ctx.beginPath()
+    ctx.moveTo(lastPosRef.current.x, lastPosRef.current.y)
+    ctx.lineTo(pos.x, pos.y)
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.stroke()
