@@ -1503,6 +1503,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={drawingPathsA}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
+            wheelPageNavigation={!editingText && !isLoading && !pdfError}
+            wheelEventTargetRef={splitContainerRef}
             onPageChange={handlePageAChange}
             onPathAdd={() => {}}
             onPathsChange={() => {}}
