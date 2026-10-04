@@ -1560,6 +1560,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             drawingPaths={currentDrawingPathsB}
             isCtrlPressed={isCtrlPressed}
             splitMode={isSplitView}
+            wheelEventTargetRef={splitContainerRef}
             onPageChange={handlePageBChange}
             onPathAdd={(path) => handlePathAddB(pageB, path)}
             onPathsChange={(paths) => handlePathsChangeB(pageB, paths)}
