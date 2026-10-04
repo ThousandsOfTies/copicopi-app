@@ -1,16 +1,15 @@
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DEFAULT_MODEL_ID } from '@home-teacher/common/constants/grading'
 import { GradingResponseResult, getAvailableModels, gradeWork, ModelInfo } from '@home-teacher/common/services/api'
 import GradingResult from './GradingResult'
 import GradingSpread from './GradingSpread'
 import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
-import { deleteAllDrawings, flushDrawingSaves, getAllDrawings, getPDFRecord, updatePDFRecord, getAllSNSLinks, SNSLinkRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveGradingImage, scheduleDrawingSave, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
-import { ICON_SVG } from '../../constants/icons'
+import { flushDrawingSaves, getAllDrawings, getPDFRecord, updatePDFRecord, PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveGradingImage, scheduleDrawingSave, saveTextAnnotation, getAppSettings } from '@home-teacher/common/utils/indexedDB'
 import { drawAdditionalStrokeStyle, type DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
-import { StudyToolbar, BreadcrumbItem, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
+import { StudyToolbar, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
 import { usePDFRenderer } from '@home-teacher/common/hooks/pdf/usePDFRenderer'
 import './StudyPanel.css'
 import { compressImageDataUrl } from '@home-teacher/common/utils/image'
@@ -84,19 +83,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const gradingCaptureStartRef = useRef<{ x: number; y: number } | null>(null)
   const [gradingCaptureRect, setGradingCaptureRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   const [isGradingCaptureMode, setIsGradingCaptureMode] = useState(false)
-
-  // --- Consolidated State & Logic ---
-
-  // Status Handling
-  const [statusMessage, setStatusMessage] = useState('')
-
-  // Helper Methods (Hoisted)
-  const addStatusMessage = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString('ja-JP')
-    const fullMessage = `[${timestamp}] ${message}`
-    // console.log(fullMessage)
-    setStatusMessage(message)
-  }
 
   // Layout State
   // CopiCopi は見本（A面）と描画面（B面）を並べて使うため、左右開きを初期表示にする。
@@ -203,14 +189,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const [strokeStyle, setStrokeStyle] = useState<StrokeStyle>('pencil')
   const [watercolorOpacity, setWatercolorOpacity] = useState(0.25)
   const [eraserSize, setEraserSize] = useState(50)
-  // Popups
-  const [showPenPopup, setShowPenPopup] = useState(false)
-  const [showEraserPopup, setShowEraserPopup] = useState(false)
 
   // Text State
   const [textFontSize, setTextFontSize] = useState(16)
   const [textDirection, setTextDirection] = useState<TextDirection>('horizontal')
-  const [showTextPopup, setShowTextPopup] = useState(false)
   const [editingText, setEditingText] = useState<{
     pageNum: number
     x: number
@@ -221,22 +203,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     initialText?: string
   } | null>(null)
   const [textAnnotations, setTextAnnotations] = useState<Map<number, TextAnnotation[]>>(new Map())
-
-  // SNS State
-  const [snsLinks, setSnsLinks] = useState<SNSLinkRecord[]>([])
-  const snsTimeLimit = userData?.snsRewardMinutes || 60
-
-  useEffect(() => {
-    const loadSNSData = async () => {
-      try {
-        const links = await getAllSNSLinks()
-        setSnsLinks(links)
-      } catch (error) {
-        console.error('Failed to load SNS data:', error)
-      }
-    }
-    loadSNSData()
-  }, [])
 
   // Drawing State
   // CopiCopi stores the user's strokes on the B-side only. A-side remains a
@@ -339,9 +305,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Panel stack state
   const [panelStack, setPanelStack] = useState<PanelData[]>([{ type: 'pdf' }])
   const [activePanelIndex, setActivePanelIndex] = useState(0)
-
-  // canUndo state for answer panel (managed reactively via callback)
-  const [canUndoAnswer, setCanUndoAnswer] = useState(false)
 
   const getPanelLabel = (panel: PanelData): string => {
     switch (panel.type) {
@@ -584,12 +547,10 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         // A面とB面を含む範囲キャプチャー1枚を、そのまま模写評価へ送る。
         await confirmAndGrade(capturedImage.image, capturedImage.sourcePageNumbers)
       } else {
-        addStatusMessage("❌ 画像のキャプチャに失敗しました")
         setSelectionRect(null)
       }
     } catch (error) {
       console.error("Capture error:", error)
-      addStatusMessage("❌ エラーが発生しました")
       setSelectionRect(null)
     }
   }
@@ -676,15 +637,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       setGradingCaptureRect(null)
     } catch (error) {
       console.error('Grading capture error:', error)
-      addStatusMessage('❌ キャプチャに失敗しました')
       setGradingCaptureRect(null)
     }
-  }
-
-  const cancelGradingCapture = () => {
-    setIsGradingCaptureMode(false)
-    setGradingCaptureRect(null)
-    isGradingCapturingRef.current = false
   }
 
   const captureSelectionArea = async (rect: { x: number, y: number, width: number, height: number }) => {
@@ -828,7 +782,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   const addDrawingLayer = () => {
     if (currentLayersB.length >= MAX_DRAWING_LAYERS) {
-      addStatusMessage(`レイヤーは${MAX_DRAWING_LAYERS}枚までです`)
       return
     }
     const layer: DrawingLayer = {
@@ -840,7 +793,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     const nextLayers = [...currentLayersB, layer]
     updateCurrentLayerState(nextLayers)
     setActiveLayerIdsB(previous => new Map(previous).set(pageB, layer.id))
-    addStatusMessage(`${layer.name}を追加しました`)
   }
 
   const selectDrawingLayer = (layerId: string) => {
@@ -885,7 +837,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
   const deleteDrawingLayer = (layerId: string) => {
     if (currentLayersB.length <= 1) {
-      addStatusMessage('最後のレイヤーは削除できません')
       return
     }
     const layer = currentLayersB.find(item => item.id === layerId)
@@ -940,9 +891,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         modelName: null,
         responseTime: null
       })
-
-      // APIに送信（簡素化：切り抜き画像のみ）
-      addStatusMessage(t('copiStudy.status.teacherReviewing'))
       const startTime = Date.now()
       const response = await gradeWork(
         croppedImageData,
@@ -976,7 +924,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         modelName: response.modelName ?? null,
         responseTime: response.responseTime ?? clientResponseTimeSeconds
       })
-      addStatusMessage(t('copiStudy.status.reviewComplete'))
 
       // 採点履歴を保存
       if (response.result.problems?.length) {
@@ -1037,10 +984,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     if (compositeImage) await confirmAndGrade(compositeImage, sourcePanel.sourcePageNumbers, teacherMode)
   }
 
-  // プレビューのキャンセル
-  const cancelPreview = () => {
-  }
-
   // 描画モードの切り替え
   const toggleDrawingMode = () => {
     if (!isDrawingMode) {
@@ -1049,7 +992,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
-      addStatusMessage('✏️ ペンモード')
     }
   }
 
@@ -1061,34 +1003,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       setIsTextMode(false)
       setIsSelectionMode(false)
       setSelectionRect(null)
-      addStatusMessage('🧹 消しゴムモード')
-    }
-  }
-
-  // クリア機能（現在のレイヤーのみ）
-  const clearDrawing = () => {
-    const nextPaths = currentAllDrawingPathsB.filter(path => path.layerId !== activeLayerIdB)
-    updateCurrentLayerState(currentLayersB, nextPaths)
-    addStatusMessage('選択中のレイヤーをクリアしました')
-  }
-
-  // すべてのページの描画をクリア
-  const clearAllDrawings = async () => {
-    if (!confirm('すべてのページのペン跡を削除しますか？この操作は取り消せません。')) {
-      return
-    }
-
-    setDrawingPathsB(new Map())
-    setDrawingLayersB(new Map())
-    setActiveLayerIdsB(new Map())
-    pendingDrawingWritesRef.current.clear()
-    // IndexedDBのページ別筆跡ストアからも削除
-    try {
-      await deleteAllDrawings(pdfId)
-      addStatusMessage('🗑️ すべてのペン跡を削除しました')
-    } catch (error) {
-      console.error('ペン跡の削除に失敗:', error)
-      addStatusMessage('❌ ペン跡の削除に失敗しました')
     }
   }
 
@@ -1097,7 +1011,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     const currentPanel = panelStack[activePanelIndex]
     if (currentPanel?.type !== 'pdf' || !containerRef.current) return
     if (!isSplitView) {
-      addStatusMessage(t('copiStudy.status.splitRequired'))
       return
     }
 
@@ -1168,7 +1081,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
         return newMap
       })
-      addStatusMessage('📝 テキストを更新しました')
       finish()
       return
     }
@@ -1201,7 +1113,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
       return newMap
     })
-    addStatusMessage('📝 テキストを追加しました')
     finish()
   }
 
@@ -1222,7 +1133,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
 
       return newMap
     })
-    addStatusMessage('🗑️ テキストを削除しました')
   }
 
   // ステータスメッセージ
@@ -1270,12 +1180,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }, 500)
     return () => clearTimeout(timer)
   }, [pageA, pageB, pdfRecord.id, pdfRecord.lastPageNumberA, pdfRecord.lastPageNumberB])
-
-  // 矩形選択モードをキャンセル
-  const handleCancelSelection = () => {
-    setSelectionRect(null)
-    addStatusMessage('選択をクリアしました。再度範囲を選択してください')
-  }
 
   // リサイズハンドラ
   const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
@@ -1882,13 +1786,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           toggleLayerPanel={() => setShowLayerPanel(previous => !previous)}
           activeLayerName={currentLayersB.find(layer => layer.id === activeLayerIdB)?.name || 'レイヤー'}
           layerCount={currentLayersB.length}
-          onUndo={handleUndo}
-          onClear={clearDrawing}
-          onClearAll={clearAllDrawings}
           onGrade={isOnAnswerPanel ? handleGradeFromToolbar : undefined}
-          canUndoAnswer={isOnAnswerPanel ? canUndoAnswer : undefined}
-          onUndoAnswer={isOnAnswerPanel ? () => answerPanelRef.current?.undo() : undefined}
-          onClearAnswer={isOnAnswerPanel ? () => answerPanelRef.current?.clear() : undefined}
           selectedModel={selectedModel}
           setSelectedModel={setSelectedModel}
           availableModels={availableModels}
@@ -1917,7 +1815,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   strokeStyle={strokeStyle}
                   isEraserMode={isEraserMode}
                   eraserSize={eraserSize}
-                  onCanUndoChange={setCanUndoAnswer}
                 />
               )}
               {panel.type === 'grading' && (

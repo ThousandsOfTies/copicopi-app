@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ICON_SVG } from '../../constants/icons';
-import { FiChevronDown, FiHeart, FiHome, FiRotateCcw, FiTrash2, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
+import { FiChevronDown, FiHeart, FiHome, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPaint, BiPalette, BiPen, BiPencil, BiSolidCircle } from 'react-icons/bi';
 import { MdBalance } from 'react-icons/md';
 import { useTranslation } from 'react-i18next';
@@ -70,16 +69,8 @@ interface StudyToolbarProps {
     activeLayerName: string;
     layerCount: number;
 
-    // Actions
-    onUndo: () => void;
-    onClear: () => void;
-    onClearAll: () => void;
-
     // Answer panel actions (shown when on answer panel)
     onGrade?: () => void;
-    canUndoAnswer?: boolean;
-    onUndoAnswer?: () => void;
-    onClearAnswer?: () => void;
     selectedModel?: string;
     setSelectedModel?: (model: string) => void;
     availableModels?: Array<{ id: string; name: string; description?: string }>;
@@ -126,13 +117,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     toggleLayerPanel,
     activeLayerName,
     layerCount,
-    onUndo,
-    onClear,
-    onClearAll,
     onGrade,
-    canUndoAnswer,
-    onUndoAnswer,
-    onClearAnswer,
     selectedModel,
     setSelectedModel,
     availableModels,
