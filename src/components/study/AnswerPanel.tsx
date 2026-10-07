@@ -1,6 +1,8 @@
+import { useAnswerWheel } from '@home-teacher/common/hooks/useAnswerWheel'
+import { pinchViewport, touchPair } from '@thousands-of-ties/drawing-common'
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { ICON_SVG } from '../../constants/icons'
-import { drawAdditionalStrokeStyle, type StrokeStyle } from '@thousands-of-ties/drawing-common'
+import { CanvasUndoHistory, drawAdditionalStrokeStyle, type StrokeStyle } from '@thousands-of-ties/drawing-common'
 import './AnswerPanel.css'
 
 export interface AnswerPanelHandle {
@@ -41,7 +43,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const drawCanvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
   const lastPosRef = useRef<{ x: number; y: number } | null>(null)
-  const historyRef = useRef<ImageData[]>([])
+  const historyRef = useRef(new CanvasUndoHistory())
   const [canUndo, setCanUndo] = useState(false)
   const [eraserCursorPos, setEraserCursorPos] = useState<{ x: number; y: number; diameter: number } | null>(null)
 
@@ -96,12 +98,11 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     // Question image
     ctx.drawImage(img, imageLeft, TOP_MARGIN, imgW, imgH)
 
-
     // Clear draw canvas (fully transparent)
     const dCtx = drawCanvas.getContext('2d')!
     dCtx.clearRect(0, 0, w, h)
 
-    historyRef.current = []
+    historyRef.current.clear()
     setCanUndo(false)
     onCanUndoChange?.(false)
   }
@@ -134,8 +135,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const saveSnapshot = () => {
     const drawCanvas = drawCanvasRef.current
     if (!drawCanvas) return
-    const ctx = drawCanvas.getContext('2d')!
-    historyRef.current.push(ctx.getImageData(0, 0, drawCanvas.width, drawCanvas.height))
+    if (!historyRef.current.push(drawCanvas, undefined)) return
     setCanUndo(true)
     onCanUndoChange?.(true)
   }
@@ -143,15 +143,10 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const handleUndo = () => {
     const drawCanvas = drawCanvasRef.current
     if (!drawCanvas) return
-    const ctx = drawCanvas.getContext('2d')!
-    historyRef.current.pop()
-    if (historyRef.current.length > 0) {
-      ctx.putImageData(historyRef.current[historyRef.current.length - 1], 0, 0)
-    } else {
-      ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height)
-      setCanUndo(false)
-      onCanUndoChange?.(false)
-    }
+    if (!historyRef.current.undo(drawCanvas)) return
+    const hasHistory = historyRef.current.length > 0
+    setCanUndo(hasHistory)
+    onCanUndoChange?.(hasHistory)
   }
 
   const handleClear = () => {
@@ -261,42 +256,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const cursor = isPanning ? 'grabbing' : (isCtrlPressed ? 'grab' : (isEraserMode ? 'none' : ICON_SVG.penCursor(penColor)))
 
   // Zoom/Pan Helpers
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const handleWheelNative = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault()
-        e.stopPropagation()
-
-        const delta = -e.deltaY
-        const scaleFactor = 1.1
-        const newZoom = delta > 0 ? zoom * scaleFactor : zoom / scaleFactor
-        const clampedZoom = Math.min(Math.max(newZoom, 0.2), 5.0)
-
-        // Zoom toward mouse pointer
-        const rect = container.getBoundingClientRect()
-        const mouseX = e.clientX - rect.left
-        const mouseY = e.clientY - rect.top
-
-        const contentX = (mouseX - panOffset.x) / zoom
-        const contentY = (mouseY - panOffset.y) / zoom
-
-        setPanOffset({
-          x: mouseX - contentX * clampedZoom,
-          y: mouseY - contentY * clampedZoom
-        })
-        setZoom(clampedZoom)
-      } else {
-        // Normal scroll translates to pan
-        setPanOffset(prev => ({ ...prev, y: prev.y - e.deltaY }))
-      }
-    }
-
-    container.addEventListener('wheel', handleWheelNative, { passive: false })
-    return () => container.removeEventListener('wheel', handleWheelNative)
-  }, [zoom, panOffset])
+  useAnswerWheel(containerRef, { zoom, panOffset, setZoom, setPanOffset })
 
   const startPanning = (clientX: number, clientY: number) => {
     setIsPanning(true)
@@ -356,27 +316,18 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
           onMouseLeave={() => { stopDraw(); stopPanning(); setEraserCursorPos(null) }}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
-              const t1 = e.touches[0]; const t2 = e.touches[1]
-              const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
-              const center = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }
-              gestureRef.current = { startZoom: zoom, startPan: panOffset, startDist: dist, startCenter: center }
+              const pair = touchPair(e.touches)
+              gestureRef.current = { startZoom: zoom, startPan: panOffset, startDist: pair.distance, startCenter: pair.center }
             } else if (e.touches.length === 1) {
               const t = e.touches[0]; startDraw(t.clientX, t.clientY)
             }
           }}
           onTouchMove={(e) => {
             if (e.touches.length === 2 && gestureRef.current) {
-              const t1 = e.touches[0]; const t2 = e.touches[1]
-              const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY)
-              const center = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }
-              const { startZoom, startPan, startDist, startCenter } = gestureRef.current
-              const scale = dist / startDist
-              const newZoom = Math.min(Math.max(startZoom * scale, 0.2), 5.0)
-              const rect = containerRef.current!.getBoundingClientRect()
-              const contentX = (startCenter.x - rect.left - startPan.x) / startZoom
-              const contentY = (startCenter.y - rect.top - startPan.y) / startZoom
-              setZoom(newZoom)
-              setPanOffset({ x: center.x - rect.left - contentX * newZoom, y: center.y - rect.top - contentY * newZoom })
+              const bounds = containerRef.current?.getBoundingClientRect()
+              if (!bounds) return
+              const view = pinchViewport(gestureRef.current, touchPair(e.touches), bounds, 0.2)
+              if (view) { setZoom(view.zoom); setPanOffset(view.panOffset) }
             } else if (e.touches.length === 1) {
               const t = e.touches[0]
               if (isEraserMode) setEraserCursorPos(getEraserCursorPos(t.clientX, t.clientY))

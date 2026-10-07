@@ -7,7 +7,7 @@
   "scripts": {
     "test:bundle": "node ../home-teacher-common/build/checkDeferredAssets.mjs dist && node scripts/check-page-translations.mjs dist",
     "test": "npm run test:i18n && npm run test:grading-source",
-    "test:grading-source": "node --test tests/grading-source.test.cjs",
+    "test:grading-source": "node --test tests/grading-source.test.cjs tests/answer-undo.test.cjs",
     "dev": "vite",
     "dev:server": "npm --prefix server run dev",
     "build": "vite build",
