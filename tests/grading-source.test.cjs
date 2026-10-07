@@ -20,7 +20,11 @@ function handler(name, adapters) {
     const code = ts.transpileModule('const run = ' + initializer.getText(ast), {
         compilerOptions: { target: ts.ScriptTarget.ES2022 }
     }).outputText;
-    return vm.runInNewContext(code + '\nrun', adapters);
+    return vm.runInNewContext(code + '\nrun', {
+        appMessages: require('../src/i18n/locales/ja.json'),
+        commonMessages: require('../../home-teacher-common/src/i18n/locales/ja.json'),
+        ...adapters,
+    });
 }
 
 function capture({ activeTab = 'A', isSplitView = false, pageA = 1, pageB = 5 } = {}) {

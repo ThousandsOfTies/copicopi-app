@@ -1,3 +1,6 @@
+import commonMessages from '@home-teacher/common/i18n/locales/ja.json'
+import { useAppTranslation } from '../../i18n'
+import { localizeAppError } from '../../i18n/errorMessages'
 import { GradingResponseResult } from '@home-teacher/common/services/api'
 import { useTranslation } from 'react-i18next'
 import './GradingResult.css'
@@ -16,13 +19,14 @@ const splitAdvice = (value?: string) => value
   : []
 
 const teacherDisplay = {
-  kind: { icon: '♡', label: 'KIND' },
-  balanced: { icon: '⚖', label: 'BALANCED' },
-  strict: { icon: '◎', label: 'HARD' }
+  kind: { icon: '♡', label: 'teachers.kind' },
+  balanced: { icon: '⚖', label: 'teachers.balanced' },
+  strict: { icon: '◎', label: 'teachers.strict' }
 } as const
 
 const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind', modelName, responseTime }: GradingResultProps) => {
   const { t } = useTranslation()
+  const { t: appT } = useAppTranslation()
   const teacher = teacherDisplay[teacherMode]
   if (isLoading) {
     return (
@@ -46,7 +50,7 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
       <article className="grading-result-sheet grading-result-error" role="alert">
         <div className={`grading-teacher-mark teacher-${teacherMode}`}>{teacher.icon}</div>
         <h1>{t('copiStudy.result.errorTitle')}</h1>
-        <p>{error}</p>
+        <p>{localizeAppError(error, t)}</p>
         <p className="grading-result-error-hint">{t('copiStudy.result.errorHint')}</p>
       </article>
     )
@@ -63,17 +67,17 @@ const GradingResult = ({ result, isLoading = false, error, teacherMode = 'kind',
   const goodPoints = splitAdvice(problem?.feedback)
   const explanationLines = problem?.explanation?.split('\n').map(line => line.trim()).filter(Boolean) || []
   const nextPointPrefix = t('copiStudy.result.nextPointPrefix')
-  const improvementLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith('次のポイント：'))
+  const improvementLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith(commonMessages.copiStudy.result.nextPointPrefix))
   const improvements = splitAdvice(improvementLine
     ?.replace(nextPointPrefix, '')
-    .replace(/^次のポイント：/, ''))
+    .replace(new RegExp('^' + commonMessages.copiStudy.result.nextPointPrefix), ''))
   const practice = explanationLines.filter(line => line !== improvementLine).join(' ')
 
   return (
     <article className="grading-result-sheet">
       <header className="grading-sheet-header">
         <div>
-          <div className={`grading-sheet-kicker teacher-${teacherMode}`}>{teacher.icon} {teacher.label}</div>
+          <div className={`grading-sheet-kicker teacher-${teacherMode}`}>{teacher.icon} {appT(teacher.label)}</div>
           <h1>{t('copiStudy.result.title')}</h1>
         </div>
         {level && (

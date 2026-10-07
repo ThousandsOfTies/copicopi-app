@@ -5,8 +5,8 @@
   "description": "A local-first reference and drawing workspace",
   "type": "module",
   "scripts": {
-    "test:bundle": "node ../home-teacher-common/build/checkDeferredAssets.mjs dist",
-    "test": "npm run test:grading-source",
+    "test:bundle": "node ../home-teacher-common/build/checkDeferredAssets.mjs dist && node scripts/check-page-translations.mjs dist",
+    "test": "npm run test:i18n && npm run test:grading-source",
     "test:grading-source": "node --test tests/grading-source.test.cjs",
     "dev": "vite",
     "dev:server": "npm --prefix server run dev",
@@ -14,7 +14,8 @@
     "build:server": "npm --prefix server run build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test:i18n": "node ../home-teacher-common/build/checkTranslations.mjs src ../home-teacher-common/src && node --test tests/localization.test.mjs && tsx --test tests/layers-localization.test.ts"
   },
   "dependencies": {
     "@techstark/opencv-js": "^4.12.0-release.1",

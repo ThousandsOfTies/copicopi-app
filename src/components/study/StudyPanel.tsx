@@ -1,3 +1,7 @@
+import commonMessages from '@home-teacher/common/i18n/locales/ja.json'
+import appMessages from '../../i18n/locales/ja.json'
+import { localizeAppError } from '../../i18n/errorMessages'
+import { useAppTranslation } from '../../i18n'
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +19,7 @@ import './StudyPanel.css'
 import { compressImageDataUrl } from '@home-teacher/common/utils/image'
 import { useAuth } from '@home-teacher/common/contexts/AuthContext'
 import { FiChevronDown, FiChevronUp, FiDroplet, FiEye, FiEyeOff, FiMove, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
-import { createDefaultLayer, DrawingLayer, MAX_DRAWING_LAYERS, normalizeLayeredDrawing, serializeLayeredDrawing, sortPathsByLayer } from './layers'
+import { getDefaultLayerName, getLayerDisplayName, resolveLayerNameInput, createDefaultLayer, DrawingLayer, MAX_DRAWING_LAYERS, normalizeLayeredDrawing, serializeLayeredDrawing, sortPathsByLayer } from './layers'
 import { LayerThumbnail } from './LayerThumbnail'
 
 // テキストアノテーションの型定義
@@ -72,6 +76,7 @@ type PanelData =
 
 const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const { t, i18n } = useTranslation()
+  const { t: appT } = useAppTranslation()
   const { userData } = useAuth()
   // Refs
   const paneARef = useRef<PDFPaneHandle>(null)
@@ -786,7 +791,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
     const layer: DrawingLayer = {
       id: `layer-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: `レイヤー${currentLayersB.length + 1}`,
+      name: getDefaultLayerName(currentLayersB.length + 1),
       visible: true,
       opacity: 1,
     }
@@ -841,7 +846,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     }
     const layer = currentLayersB.find(item => item.id === layerId)
     const hasPaths = currentAllDrawingPathsB.some(path => path.layerId === layerId)
-    if (hasPaths && !window.confirm(`${layer?.name || 'レイヤー'}と、その中の線を削除しますか？`)) return
+    if (hasPaths && !window.confirm(appT('layers.deleteConfirm', { name: layer ? getLayerDisplayName(layer.name, appT) : appT('layers.title') }))) return
 
     const nextLayers = currentLayersB.filter(item => item.id !== layerId)
     const nextPaths = currentAllDrawingPathsB.filter(path => path.layerId !== layerId)
@@ -868,7 +873,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           if (img.width < 50 || img.height < 50) {
             setGradingError(t('copiStudy.status.imageTooSmall'))
             setIsGrading(false)
-            reject(new Error('Image too small'))
+            reject(new Error(appMessages.errors.imageTooSmall))
           } else {
             resolve(undefined)
           }
@@ -876,7 +881,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         img.onerror = () => {
           setGradingError(t('copiStudy.status.imageLoadFailed'))
           setIsGrading(false)
-          reject(new Error('Image load error'))
+          reject(new Error(appMessages.errors.imageLoad))
         }
       })
 
@@ -938,7 +943,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             : (Number.isFinite(scoreFromTitle) ? scoreFromTitle : undefined)
           const explanationLines = problem.explanation?.split('\n').map(line => line.trim()).filter(Boolean) || []
           const nextPointPrefix = t('copiStudy.result.nextPointPrefix')
-          const nextPointLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith('次のポイント：'))
+          const nextPointLine = explanationLines.find(line => line.startsWith(nextPointPrefix) || line.startsWith(commonMessages.copiStudy.result.nextPointPrefix))
           const historyRecord = {
             id: generateGradingHistoryId(),
             pdfId,
@@ -956,7 +961,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             teacherMode: selectedTeacherMode,
             score,
             overallComment: response.result.overallComment || '',
-            nextPoint: nextPointLine?.replace(nextPointPrefix, '').replace(/^次のポイント：/, '') || '',
+            nextPoint: nextPointLine?.replace(nextPointPrefix, '').replace(new RegExp('^' + commonMessages.copiStudy.result.nextPointPrefix), '') || '',
             practiceAdvice: explanationLines.filter(line => line !== nextPointLine).join(' '),
             matchingMetadata: problem.matchingMetadata
           }
@@ -1022,7 +1027,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       height: Math.round(rect.height)
     })
     if (!capturedImage) {
-      setGradingError('現在のA/B画面をキャプチャーできませんでした。')
+      setGradingError(appMessages.errors.captureFailed)
       return
     }
     await confirmAndGrade(capturedImage.image, capturedImage.sourcePageNumbers, teacherMode)
@@ -1302,7 +1307,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                 marginBottom: '16px',
                 margin: '0 auto'
               }} />
-              <p>PDFを読み込み中...</p>
+              <p>{appT('panel.pdfLoading')}</p>
               <style>{`
                 @keyframes spin {
                   0% { transform: rotate(0deg); }
@@ -1312,7 +1317,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px' }}>
-              <p style={{ color: '#e74c3c', marginBottom: '16px', fontWeight: 'bold' }}>PDFの読み込みに失敗しました</p>
+              <p style={{ color: '#e74c3c', marginBottom: '16px', fontWeight: 'bold' }}>{appT('panel.pdfFailed')}</p>
               <p style={{ fontSize: '12px', color: '#666', marginBottom: '20px', maxWidth: '300px', wordBreak: 'break-all' }}>{pdfError}</p>
               <button
                 onClick={() => setRetryCount(c => c + 1)}
@@ -1327,8 +1332,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
                 }}
               >
-                再読み込み
-              </button>
+                {appT('panel.reload')}</button>
             </div>
           )}
         </div>
@@ -1555,7 +1559,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   initialText: annotation.text
                 })
               }}
-              title={isClickable ? 'クリックで編集（テキストを消して確定で削除）' : ''}
+              title={isClickable ? appT('panel.editAnnotation') : ''}
             >
               {annotation.text}
             </div>
@@ -1564,16 +1568,16 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       </div>
 
       {(isDrawingMode || isEraserMode) && !isSelectionMode && (
-        <aside className={`brush-control-rail${isEraserMode ? ' is-eraser' : ''}`} aria-label={isEraserMode ? '消しゴムの大きさ' : 'ペンの太さと濃さ'}>
+        <aside className={`brush-control-rail${isEraserMode ? ' is-eraser' : ''}`} aria-label={isEraserMode ? appT('tools.eraserSize') : appT('tools.penSliders')}>
           {isEraserMode ? (
-            <label className="brush-vertical-control eraser-vertical-control" title={`消しゴム ${eraserSize}px`}>
+            <label className="brush-vertical-control eraser-vertical-control" title={appT('tools.eraserValue', { size: eraserSize })}>
                 <input
                   type="range"
                   min="0"
                   max={ERASER_SIZE_OPTIONS.length - 1}
                   step="1"
                   value={Math.max(0, ERASER_SIZE_OPTIONS.indexOf(eraserSize as typeof ERASER_SIZE_OPTIONS[number]))}
-                  aria-label="消しゴムの大きさ"
+                  aria-label={appT('tools.eraserSize')}
                   aria-valuetext={`${eraserSize}px`}
                   onChange={(event) => setEraserSize(ERASER_SIZE_OPTIONS[Number(event.target.value)])}
               />
@@ -1581,7 +1585,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             </label>
           ) : (
             <>
-              <label className="brush-vertical-control" title={`太さ ${penSize}px`}>
+              <label className="brush-vertical-control" title={appT('tools.widthValue', { size: penSize })}>
                 <span className="brush-control-preview brush-size-preview" style={{ width: `${Math.min(18, 5 + penSize * 0.13)}px`, height: `${Math.min(18, 5 + penSize * 0.13)}px` }} />
                 <input
                   type="range"
@@ -1589,20 +1593,20 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   max="10"
                   step="1"
                   value={penSize}
-                  aria-label="ペンの太さ"
+                  aria-label={appT('tools.width')}
                   aria-valuetext={`${penSize}px`}
                   onChange={(event) => setPenSize(Number(event.target.value))}
                 />
                 <output>{penSize}</output>
               </label>
-              <label className="brush-vertical-control" title={`濃さ ${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}>
+              <label className="brush-vertical-control" title={appT('tools.opacityValue', { value: brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100) })}>
                 <FiDroplet className="brush-opacity-icon" aria-hidden="true" />
                 <input
                   type="range"
                   min="10"
                   max="100"
                   value={brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}
-                  aria-label="ペンの濃さ"
+                  aria-label={appT('tools.opacity')}
                   aria-valuetext={`${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}
                   onChange={(event) => {
                     const opacity = Number(event.target.value) / 100
@@ -1622,15 +1626,15 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
       )}
 
       {showLayerPanel && (isSplitView || activeTab === 'B') && (
-        <aside className={`drawing-layer-panel ${isPanesReversed ? 'on-left' : 'on-right'}`} aria-label="レイヤー">
+        <aside className={`drawing-layer-panel ${isPanesReversed ? 'on-left' : 'on-right'}`} aria-label={appT('layers.title')}>
           <header className="drawing-layer-header">
             <div>
-              <strong>レイヤー</strong>
+              <strong>{appT('layers.title')}</strong>
               <span>{currentLayersB.length}/{MAX_DRAWING_LAYERS}</span>
             </div>
             <div className="drawing-layer-header-actions">
-              <button type="button" onClick={addDrawingLayer} disabled={currentLayersB.length >= MAX_DRAWING_LAYERS} title="レイヤーを追加" aria-label="レイヤーを追加"><FiPlus /></button>
-              <button type="button" onClick={() => setShowLayerPanel(false)} title="閉じる" aria-label="レイヤーを閉じる"><FiX /></button>
+              <button type="button" onClick={addDrawingLayer} disabled={currentLayersB.length >= MAX_DRAWING_LAYERS} title={appT('layers.add')} aria-label={appT('layers.add')}><FiPlus /></button>
+              <button type="button" onClick={() => setShowLayerPanel(false)} title={appT('layers.close')} aria-label={appT('layers.closePanel')}><FiX /></button>
             </div>
           </header>
 
@@ -1659,8 +1663,8 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                       event.stopPropagation()
                       toggleDrawingLayerVisibility(layer.id)
                     }}
-                    title={layer.visible ? '非表示にする' : '表示する'}
-                    aria-label={layer.visible ? `${layer.name}を非表示にする` : `${layer.name}を表示する`}
+                    title={layer.visible ? appT('layers.hide') : appT('layers.show')}
+                    aria-label={layer.visible ? appT('layers.hideName', { name: getLayerDisplayName(layer.name, appT) }) : appT('layers.showName', { name: getLayerDisplayName(layer.name, appT) })}
                   >
                     {layer.visible ? <FiEye /> : <FiEyeOff />}
                   </button>
@@ -1672,21 +1676,21 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                   />
                   <div className="drawing-layer-copy">
                     <input
-                      value={layer.name}
+                      value={getLayerDisplayName(layer.name, appT)}
                       maxLength={24}
-                      aria-label="レイヤー名"
+                      aria-label={appT('layers.name')}
                       onClick={event => event.stopPropagation()}
                       onFocus={() => selectDrawingLayer(layer.id)}
                       onChange={event => renameDrawingLayer(layer.id, event.target.value)}
                       onBlur={event => {
-                        renameDrawingLayer(layer.id, event.target.value.trim() || `レイヤー${originalIndex + 1}`, true)
+                        renameDrawingLayer(layer.id, resolveLayerNameInput(layer.name, event.target.value, originalIndex + 1, appT), true)
                       }}
                     />
                     <div className="drawing-layer-meta">
-                      <small>{layerPaths.length > 0 ? `${layerPaths.length}本` : '空'}</small>
+                      <small>{layerPaths.length > 0 ? appT('layers.strokes', { count: layerPaths.length }) : appT('layers.empty')}</small>
                       <label
                         className="drawing-layer-opacity"
-                        title={`レイヤーの濃さ ${Math.round(layer.opacity * 100)}%`}
+                        title={appT('layers.opacityValue', { value: Math.round(layer.opacity * 100) })}
                         onClick={event => event.stopPropagation()}
                         onPointerDown={event => event.stopPropagation()}
                       >
@@ -1697,7 +1701,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                           max="100"
                           step="1"
                           value={Math.round(layer.opacity * 100)}
-                          aria-label={`${layer.name}の濃さ`}
+                          aria-label={appT('layers.opacityName', { name: getLayerDisplayName(layer.name, appT) })}
                           aria-valuetext={`${Math.round(layer.opacity * 100)}%`}
                           onChange={event => updateDrawingLayerOpacity(layer.id, Number(event.target.value) / 100)}
                         />
@@ -1716,18 +1720,18 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
                         setDraggedLayerId(layer.id)
                       }}
                       onDragEnd={() => setDraggedLayerId(null)}
-                      title="ドラッグして重なり順を変更"
-                      aria-label={`${layer.name}をドラッグして並べ替え`}
+                      title={appT('layers.drag')}
+                      aria-label={appT('layers.reorderName', { name: getLayerDisplayName(layer.name, appT) })}
                     ><FiMove /></button>
-                    <button type="button" disabled={originalIndex === currentLayersB.length - 1} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'up') }} title="前面へ"><FiChevronUp /></button>
-                    <button type="button" disabled={originalIndex === 0} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'down') }} title="背面へ"><FiChevronDown /></button>
-                    <button type="button" disabled={currentLayersB.length <= 1} onClick={event => { event.stopPropagation(); deleteDrawingLayer(layer.id) }} title="削除"><FiTrash2 /></button>
+                    <button type="button" disabled={originalIndex === currentLayersB.length - 1} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'up') }} title={appT('layers.forward')}><FiChevronUp /></button>
+                    <button type="button" disabled={originalIndex === 0} onClick={event => { event.stopPropagation(); nudgeDrawingLayer(layer.id, 'down') }} title={appT('layers.backward')}><FiChevronDown /></button>
+                    <button type="button" disabled={currentLayersB.length <= 1} onClick={event => { event.stopPropagation(); deleteDrawingLayer(layer.id) }} title={appT('layers.delete')}><FiTrash2 /></button>
                   </div>
                 </div>
               )
             })}
           </div>
-          <p className="drawing-layer-hint">上下ボタンまたは移動ハンドルで重なり順を変更</p>
+          <p className="drawing-layer-hint">{appT('layers.reorderHint')}</p>
         </aside>
       )}
     </div>
@@ -1784,7 +1788,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           showLayerControls={activePanel?.type === 'pdf' && (isSplitView || activeTab === 'B')}
           isLayerPanelOpen={showLayerPanel}
           toggleLayerPanel={() => setShowLayerPanel(previous => !previous)}
-          activeLayerName={currentLayersB.find(layer => layer.id === activeLayerIdB)?.name || 'レイヤー'}
+          activeLayerName={getLayerDisplayName(currentLayersB.find(layer => layer.id === activeLayerIdB)?.name || appT('layers.title'), appT)}
           layerCount={currentLayersB.length}
           onGrade={isOnAnswerPanel ? handleGradeFromToolbar : undefined}
           selectedModel={selectedModel}
@@ -1940,7 +1944,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             maxWidth: '400px',
             textAlign: 'center'
           }}>
-            ❌ {gradingError}
+            ❌ {localizeAppError(gradingError, appT)}
           </div>
         )}
       </div>

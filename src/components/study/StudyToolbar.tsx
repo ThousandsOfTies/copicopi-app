@@ -1,3 +1,4 @@
+import { useAppTranslation } from '../../i18n'
 import React, { useEffect, useRef, useState } from 'react';
 import { FiChevronDown, FiHeart, FiHome, FiCheckCircle, FiLoader, FiType, FiDroplet, FiTarget, FiLock, FiLayers } from 'react-icons/fi';
 import { BiBrush, BiEraser, BiHighlight, BiPaint, BiPalette, BiPen, BiPencil, BiSolidCircle } from 'react-icons/bi';
@@ -124,6 +125,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     defaultModelName,
 }) => {
     const { t } = useTranslation();
+  const { t: appT } = useAppTranslation()
     // Popups visibility state
     const [showTextPopup, setShowTextPopup] = useState(false);
     const [showPenPopup, setShowPenPopup] = useState(false);
@@ -139,9 +141,9 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     ];
 
     const allTeacherOptions: Array<{ mode: TeacherMode; label: string; description: string; icon: React.ReactNode }> = [
-        { mode: 'kind', label: 'KIND', description: 'Good points first', icon: <FiHeart /> },
-        { mode: 'balanced', label: 'BALANCED', description: 'Clear and practical', icon: <MdBalance /> },
-        { mode: 'strict', label: 'HARD', description: 'Detailed and precise', icon: <FiTarget /> },
+        { mode: 'kind', label: appT('teachers.kind'), description: appT('teachers.kindDescription'), icon: <FiHeart /> },
+        { mode: 'balanced', label: appT('teachers.balanced'), description: appT('teachers.balancedDescription'), icon: <MdBalance /> },
+        { mode: 'strict', label: appT('teachers.strict'), description: appT('teachers.strictDescription'), icon: <FiTarget /> },
     ];
     const selectedTeacher = allTeacherOptions.find(option => option.mode === teacherMode) || allTeacherOptions[0];
     const penIconOpacity = brushType === 'watercolor' ? Math.max(watercolorOpacity, 0.32) : 1;
@@ -158,11 +160,11 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
         crayon: <BiPaint size={21} style={penIconStyle} />,
     };
     const strokeStyleLabels: Record<StrokeStyle, string> = {
-        pencil: 'えんぴつ',
-        marker: 'マーカー',
-        brush: '筆',
-        calligraphy: 'カリグラフィー',
-        crayon: 'クレヨン',
+        pencil: appT('tools.pencil'),
+        marker: appT('tools.marker'),
+        brush: appT('tools.brush'),
+        calligraphy: appT('tools.calligraphy'),
+        crayon: appT('tools.crayon'),
     };
     const activePenIcon = penIcons[strokeStyle];
     const strokeStyleLabel = strokeStyleLabels[strokeStyle];
@@ -215,7 +217,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
             {/* 戻るボタン */}
             {onBack && (
                 <>
-                    <button onClick={onBack} title="ホームに戻る" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <button onClick={onBack} title={appT('toolbar.home')} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                         <FiHome size={20} />
                     </button>
 
@@ -269,8 +271,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         <button
                             onClick={handlePenClick}
                             className={isDrawingMode ? 'active' : ''}
-                            title={isDrawingMode ? `${strokeStyleLabel}・${brushType === 'solid' ? 'くっきり' : '半透明'}（クリックで設定）` : 'ペンモード OFF'}
-                            aria-label={`${strokeStyleLabel}、${brushType === 'solid' ? 'くっきり' : '半透明'}`}
+                            title={isDrawingMode ? appT('tools.penSettings', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') }) : appT('toolbar.penOff')}
+                            aria-label={appT('tools.penLabel', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') })}
                         >
                             <span className={`pen-toolbar-icon ${brushType}`}>{activePenIcon}</span>
                         </button>
@@ -279,10 +281,10 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         {isDrawingMode && showPenPopup && (
                             <div className="tool-popup pen-settings-popup">
                                 <div className="popup-row">
-                                    <label className="popup-icon-label" title="色" aria-label="色"><BiPalette size={21} /></label>
+                                    <label className="popup-icon-label" title={appT('tools.color')} aria-label={appT('tools.color')}><BiPalette size={21} /></label>
                                     <input
                                         type="color"
-                                        aria-label="色を選択"
+                                        aria-label={appT('tools.selectColor')}
                                         value={penColor}
                                         onChange={(e) => setPenColor(e.target.value)}
                                         className="pen-color-picker"
@@ -294,7 +296,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                             key={color}
                                             type="button"
                                             className="color-swatch"
-                                            aria-label={`${color} を選択`}
+                                            aria-label={appT('tools.colorPreset', { color })}
                                             title={color}
                                             onClick={() => setPenColor(color)}
                                             style={{
@@ -305,25 +307,24 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     ))}
                                 </div>
                                 <div className="popup-row">
-                                    <label className="popup-icon-label" title="質感" aria-label="質感"><FiDroplet size={19} /></label>
+                                    <label className="popup-icon-label" title={appT('tools.texture')} aria-label={appT('tools.texture')}><FiDroplet size={19} /></label>
                                     <div className="pen-option-group">
-                                        <button type="button" aria-label="くっきり" title="くっきり（不透明）" className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} style={{ color: penColor, opacity: 1 }} /></button>
-                                        <button type="button" aria-label="水彩" title="水彩（半透明）" className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} style={{ color: penColor, opacity: Math.max(watercolorOpacity, 0.32) }} /></button>
+                                        <button type="button" aria-label={appT('tools.solid')} title={appT('tools.solidHint')} className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} style={{ color: penColor, opacity: 1 }} /></button>
+                                        <button type="button" aria-label={appT('tools.watercolor')} title={appT('tools.watercolorHint')} className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} style={{ color: penColor, opacity: Math.max(watercolorOpacity, 0.32) }} /></button>
                                     </div>
                                 </div>
                                 <div className="popup-row">
-                                    <label className="popup-icon-label" title="描き味" aria-label="描き味"><BiBrush size={21} /></label>
+                                    <label className="popup-icon-label" title={appT('tools.strokeStyle')} aria-label={appT('tools.strokeStyle')}><BiBrush size={21} /></label>
                                     <div className="pen-option-group">
-                                        <button type="button" aria-label="えんぴつ" title="えんぴつ" className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label="マーカー" title="マーカー" className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label="筆" title="筆（速度で太さが変化）" className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label="カリグラフィー" title="カリグラフィー（斜めの平筆）" className={strokeStyle === 'calligraphy' ? 'active' : ''} onClick={() => setStrokeStyle('calligraphy')}><BiPen size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label="クレヨン" title="クレヨン（ざらついた線）" className={strokeStyle === 'crayon' ? 'active' : ''} onClick={() => setStrokeStyle('crayon')}><BiPaint size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label={appT('tools.pencil')} title={appT('tools.pencil')} className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label={appT('tools.marker')} title={appT('tools.marker')} className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label={appT('tools.brush')} title={appT('tools.brushHint')} className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label={appT('tools.calligraphy')} title={appT('tools.calligraphyHint')} className={strokeStyle === 'calligraphy' ? 'active' : ''} onClick={() => setStrokeStyle('calligraphy')}><BiPen size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                        <button type="button" aria-label={appT('tools.crayon')} title={appT('tools.crayonHint')} className={strokeStyle === 'crayon' ? 'active' : ''} onClick={() => setStrokeStyle('crayon')}><BiPaint size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
                                     </div>
                                 </div>
                                 <p className="pen-setting-hint">
-                                    太さと濃さは画面左のスライダーで調整できます
-                                </p>
+                                    {appT('tools.sliderHint')}</p>
                             </div>
                         )}
                     </div>
@@ -333,7 +334,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         <button
                             onClick={handleEraserClick}
                             className={isEraserMode ? 'active' : ''}
-                            title={isEraserMode ? '消しゴムモード ON（クリックで設定）' : '消しゴムモード OFF'}
+                            title={isEraserMode ? appT('toolbar.eraserOn') : appT('toolbar.eraserOff')}
                         >
                             <BiEraser size={20} className="icon-scale-13" />
                         </button>
@@ -342,7 +343,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         {isEraserMode && showEraserPopup && (
                             <div className="tool-popup">
                                 <div className="popup-row">
-                                    <label>サイズ:</label>
+                                    <label>{appT('toolbar.size')}</label>
                                     <input
                                         type="range"
                                         min="0"
@@ -364,7 +365,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         <button
                             onClick={handleTextClick}
                             className={isTextMode ? 'active' : ''}
-                            title={isTextMode ? 'テキストモード ON（クリックで設定）' : 'テキストモード OFF'}
+                            title={isTextMode ? appT('toolbar.textOn') : appT('toolbar.textOff')}
                         >
                             <FiType size={20} />
                         </button>
@@ -373,7 +374,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                         {isTextMode && showTextPopup && (
                             <div className="tool-popup" style={{ minWidth: '180px' }}>
                                 <div className="popup-row">
-                                    <label>サイズ:</label>
+                                    <label>{appT('toolbar.size')}</label>
                                     <input
                                         type="range"
                                         min="10"
@@ -385,19 +386,19 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                     <span>{textFontSize}px</span>
                                 </div>
                                 <div className="popup-row">
-                                    <label>方向:</label>
+                                    <label>{appT('toolbar.direction')}</label>
                                     <select
                                         value={textDirection}
                                         onChange={(e) => setTextDirection(e.target.value as TextDirection)}
                                         style={{ padding: '4px', borderRadius: '4px' }}
                                     >
-                                        <option value="horizontal">横書き (Z型)</option>
-                                        <option value="vertical-rl">縦書き右始 (N型)</option>
-                                        <option value="vertical-lr">縦書き左始</option>
+                                        <option value="horizontal">{appT('toolbar.horizontal')}</option>
+                                        <option value="vertical-rl">{appT('toolbar.verticalRight')}</option>
+                                        <option value="vertical-lr">{appT('toolbar.verticalLeft')}</option>
                                     </select>
                                 </div>
                                 <div className="popup-row">
-                                    <label>色:</label>
+                                    <label>{appT('toolbar.colorLabel')}</label>
                                     <input
                                         type="color"
                                         value={penColor}
@@ -414,8 +415,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             type="button"
                             className={`layer-toolbar-button ${isLayerPanelOpen ? 'active' : ''}`}
                             onClick={toggleLayerPanel}
-                            title={`レイヤー：${activeLayerName}`}
-                            aria-label={`レイヤーを開く。現在は${activeLayerName}`}
+                            title={appT('layers.toolbarTitle', { name: activeLayerName })}
+                            aria-label={appT('layers.toolbarLabel', { name: activeLayerName })}
                             aria-expanded={isLayerPanelOpen}
                         >
                             <FiLayers size={20} />
@@ -430,7 +431,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             {/* Split View Toggle (Moved to Tool Group) */}
                             <button
                                 onClick={toggleSplitView}
-                                title={isSplitView ? 'A/Bの位置を入れ替え' : '2画面表示 (Split View)'}
+                                title={isSplitView ? appT('toolbar.swap') : appT('toolbar.split')}
                                 className={isSplitView ? 'active' : ''}
                             >
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -443,7 +444,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             <button
                                 className={`tab-switcher-btn ${!isSplitView ? 'active' : ''}`}
                                 onClick={toggleActiveTab}
-                                title={isSplitView ? "シングルビューへ切替" : "A/B 切替"}
+                                title={isSplitView ? appT('toolbar.single') : appT('toolbar.switchPane')}
                                 style={{
                                     minWidth: '45px',
                                 }}

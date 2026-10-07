@@ -1,3 +1,4 @@
+import { useAppTranslation } from './i18n'
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import AdminPanel from '@home-teacher/common/components/admin/AdminPanel'
@@ -9,6 +10,7 @@ import { useAppInitializer } from '@home-teacher/common/hooks/useAppInitializer'
 type AppView = 'admin' | 'viewer' | 'editor'
 
 function App() {
+  const { t: appT } = useAppTranslation()
   const [currentView, setCurrentView] = useState<AppView>('admin')
   const [selectedPDF, setSelectedPDF] = useState<PDFFileRecord | null>(null)
   const { isInitialized, initialView, initialPDF, settingsVersion } = useAppInitializer()
@@ -45,7 +47,7 @@ function App() {
   }
 
   if (!isInitialized) {
-    return <div className="loading-screen">Loading...</div>
+    return <div className="loading-screen">{appT('app.loading')}</div>
   }
 
   return (
@@ -57,7 +59,7 @@ function App() {
           onEditPDF={handleEditPDF}
           hasUpdate={needRefresh}
           onUpdate={() => updateServiceWorker(true)}
-          studyTabLabel="Enjoy"
+          studyTabLabel={appT('app.studyTab')}
           storageIconSrc={`${import.meta.env.BASE_URL}icons/copicopi/logo.png`}
           historyVariant="progress"
           settingsVariant="teachers"
@@ -78,7 +80,7 @@ function App() {
           onBack={handleBackToAdmin}
         />
       ) : (
-        <div>No PDF selected</div>
+        <div>{appT('app.noPDF')}</div>
       )}
     </div>
   )

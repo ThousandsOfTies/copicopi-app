@@ -1,4 +1,26 @@
+import type { TFunction } from 'i18next'
+import ja from '../../i18n/locales/ja.json'
+import en from '../../i18n/locales/en.json'
 import { DrawingPath } from '@thousands-of-ties/drawing-common'
+
+// Keep automatic names stable in stored drawings; localize only their display.
+export const getDefaultLayerName = (number: number): string =>
+  ja.layers.numbered.replace('{{number}}', String(number))
+
+export function getLayerDisplayName(name: string, t: TFunction): string {
+  for (const messages of [ja, en]) {
+    const [prefix, suffix] = messages.layers.numbered.split('{{number}}')
+    if (!name.startsWith(prefix) || !name.endsWith(suffix)) continue
+    const number = name.slice(prefix.length, suffix ? -suffix.length : undefined)
+    if (/^\d+$/.test(number)) return t('layers.numbered', { number })
+  }
+  return name
+}
+
+export function resolveLayerNameInput(name: string, input: string, number: number, t: TFunction): string {
+  if (input === getLayerDisplayName(name, t)) return name
+  return input.trim() || getDefaultLayerName(number)
+}
 
 export const DEFAULT_LAYER_ID = 'layer-1'
 export const MAX_DRAWING_LAYERS = 10
@@ -18,7 +40,7 @@ interface StoredLayeredDrawingPage {
 
 export const createDefaultLayer = (): DrawingLayer => ({
   id: DEFAULT_LAYER_ID,
-  name: 'レイヤー1',
+  name: getDefaultLayerName(1),
   visible: true,
   opacity: 1,
 })
@@ -40,7 +62,7 @@ export const normalizeLayeredDrawing = (drawingData: string): { layers: DrawingL
       .slice(0, MAX_DRAWING_LAYERS)
       .map((layer, index) => ({
         id: layer.id,
-        name: layer.name?.trim() || `レイヤー${index + 1}`,
+        name: layer.name?.trim() || getDefaultLayerName(index + 1),
         visible: layer.visible !== false,
         opacity: typeof layer.opacity === 'number' && Number.isFinite(layer.opacity)
           ? Math.max(0, Math.min(1, layer.opacity))
