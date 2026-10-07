@@ -216,18 +216,75 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
         <div className="toolbar">
             {/* 戻るボタン */}
             {onBack && (
-                <>
-                    <button onClick={onBack} title={appT('toolbar.home')} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                        <FiHome size={20} />
-                    </button>
+                <button onClick={onBack} title={appT('toolbar.home')} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <FiHome size={20} />
+                </button>
+            )}
 
-                    {/* パンくず (ホームの横へ移動) */}
+            {/* 左側の表示切替 */}
+            {!onGrade && (
+                <>
+                    {onBack && <div className="divider" aria-hidden="true" />}
+                    <div className="toolbar-view-controls">
+                        <button
+                            className={`tab-switcher-btn ${!isSplitView ? 'active' : ''}`}
+                            onClick={toggleActiveTab}
+                            title={isSplitView ? appT('toolbar.single') : appT('toolbar.switchPane')}
+                            style={{
+                                minWidth: '45px',
+                            }}
+                        >
+                            {/* A Indicator */}
+                            <span
+                                style={{
+                                    fontWeight: activeTab === 'A' ? 'bold' : 'normal',
+                                    textDecoration: activeTab === 'A' ? 'underline' : 'none',
+                                    color: activeTab === 'A' ? '#4CAF50' : 'inherit',
+                                    fontSize: '0.85rem'
+                                }}
+                            >
+                                A
+                            </span>
+
+                            <span style={{ margin: '0 4px', color: '#ccc', fontSize: '0.85rem' }}>/</span>
+
+
+                            {/* B Indicator */}
+                            <span
+                                style={{
+                                    fontWeight: activeTab === 'B' ? 'bold' : 'normal',
+                                    textDecoration: activeTab === 'B' ? 'underline' : 'none',
+                                    color: activeTab === 'B' ? '#4CAF50' : 'inherit',
+                                    fontSize: '0.85rem'
+                                }}
+                            >
+                                B
+                            </span>
+                        </button>
+                        <button
+                            onClick={toggleSplitView}
+                            title={isSplitView ? appT('toolbar.swap') : appT('toolbar.split')}
+                            className={`split-view-btn ${isSplitView ? 'active' : ''}`}
+                        >
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="2" y="4" width="9" height="16" rx="1" stroke="currentColor" strokeWidth="1" fill={isSplitView ? "white" : "none"} />
+                                <rect x="13" y="4" width="9" height="16" rx="1" stroke="currentColor" strokeWidth="1" fill={isSplitView ? "white" : "none"} />
+                            </svg>
+                        </button>
+                    </div>
+                    <div className="divider" aria-hidden="true" />
+                </>
+            )}
+
+            {onBack && (
+                <>
+                    {/* パンくず */}
                     {breadcrumbs && breadcrumbs.length > 0 && (
                         <div style={{
                             display: 'flex', alignItems: 'center', gap: '2px',
                             flexWrap: 'nowrap', overflowX: 'auto', minWidth: 0,
                             scrollbarWidth: 'none', msOverflowStyle: 'none',
-                            marginLeft: '8px'
+                            marginLeft: '0'
                         }}>
                             {breadcrumbs.map((crumb, i) => (
                                 <React.Fragment key={i}>
@@ -261,7 +318,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
 
 
             {/* 右寄せコンテナ */}
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="toolbar-tools">
 
                 <>
                     <div className="divider"></div>
@@ -422,61 +479,6 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                             <FiLayers size={20} />
                             <span className="layer-count-badge">{layerCount}</span>
                         </button>
-                    )}
-
-                    {!onGrade && (
-                        <>
-                            <div className="divider" style={{ margin: '0 4px' }}></div>
-
-                            {/* Split View Toggle (Moved to Tool Group) */}
-                            <button
-                                onClick={toggleSplitView}
-                                title={isSplitView ? appT('toolbar.swap') : appT('toolbar.split')}
-                                className={isSplitView ? 'active' : ''}
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <rect x="2" y="4" width="9" height="16" rx="1" stroke="currentColor" strokeWidth="1" fill={isSplitView ? "white" : "none"} />
-                                    <rect x="13" y="4" width="9" height="16" rx="1" stroke="currentColor" strokeWidth="1" fill={isSplitView ? "white" : "none"} />
-                                </svg>
-                            </button>
-
-                            {/* Tab Switcher Button (Widened) */}
-                            <button
-                                className={`tab-switcher-btn ${!isSplitView ? 'active' : ''}`}
-                                onClick={toggleActiveTab}
-                                title={isSplitView ? appT('toolbar.single') : appT('toolbar.switchPane')}
-                                style={{
-                                    minWidth: '45px',
-                                }}
-                            >
-                                {/* A Indicator */}
-                                <span
-                                    style={{
-                                        fontWeight: activeTab === 'A' ? 'bold' : 'normal',
-                                        textDecoration: activeTab === 'A' ? 'underline' : 'none',
-                                        color: activeTab === 'A' ? '#4CAF50' : 'inherit',
-                                        fontSize: '0.85rem'
-                                    }}
-                                >
-                                    A
-                                </span>
-
-                                <span style={{ margin: '0 4px', color: '#ccc', fontSize: '0.85rem' }}>/</span>
-
-
-                                {/* B Indicator */}
-                                <span
-                                    style={{
-                                        fontWeight: activeTab === 'B' ? 'bold' : 'normal',
-                                        textDecoration: activeTab === 'B' ? 'underline' : 'none',
-                                        color: activeTab === 'B' ? '#4CAF50' : 'inherit',
-                                        fontSize: '0.85rem'
-                                    }}
-                                >
-                                    B
-                                </span>
-                            </button>
-                        </>
                     )}
 
                     {/* Context-specific buttons */}
