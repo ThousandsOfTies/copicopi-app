@@ -356,7 +356,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
                                         : t('copiStudy.toolbar.splitRequired')}
                                     aria-label={t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })}
                                 >
-                                    {isGrading ? <FiLoader className="animate-spin" /> : selectedTeacher.icon}
+                                    {isGrading ? <FiLoader className="animate-spin" /> : <FiCheckCircle aria-hidden="true" />}
                                     <span>{isGrading ? t('copiStudy.toolbar.checking') : selectedTeacher.label}</span>
                                 </button>
                                 <button
