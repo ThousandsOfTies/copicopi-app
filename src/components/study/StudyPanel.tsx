@@ -19,6 +19,7 @@ import AnswerPanel, { AnswerPanelHandle } from './AnswerPanel'
 import { PDFFileRecord, saveGradingHistory, generateGradingHistoryId, saveGradingImage, getAppSettings } from '@home-teacher/common/utils/indexedDB'
 import { drawAdditionalStrokeStyle, type DrawingPath } from '@thousands-of-ties/drawing-common'
 import { PDFPane, PDFPaneHandle } from '@home-teacher/common/components/study/PDFPane'
+import { StudyPDFThumbnail } from '@home-teacher/common/components/study/StudyPDFThumbnail'
 import { StudyToolbar, BrushType, StrokeStyle, TeacherMode } from './StudyToolbar'
 
 import './StudyPanel.css'
@@ -1450,6 +1451,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           onBack={onBack}
           breadcrumbs={panelStack.map((panel, i) => ({
             label: getPanelLabel(panel),
+            content: panel.type === 'pdf' ? <StudyPDFThumbnail record={pdfRecord} /> : undefined,
             onClick: () => setActivePanelIndex(i),
             isCurrent: i === activePanelIndex
           }))}
