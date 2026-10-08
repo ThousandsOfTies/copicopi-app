@@ -1,43 +1,32 @@
 # CopiCopi API
 
-CopiCopiのAB左右キャプチャーをGemini 3.8 Flashで評価する専用APIです。
+お手本と模写のA/BキャプチャーをGeminiで評価する、CopiCopi専用のExpress APIです。Firebase・StripeもCopiCopi専用の設定を使用します。
 
-## ローカル起動
+## ローカル開発
+
+Node.js 20以降を使用し、この `server` ディレクトリで実行します。
 
 ```bash
-cp .env.example .env
-# .env の GEMINI_API_KEY を設定（キーをGitへコミットしない）
-npm install
+npm ci
+# .env.example を .env にコピーし、GEMINI_API_KEY などを設定する
 npm run dev
 ```
 
-既定では `http://localhost:3003` で起動します。
+既定の接続先は `http://localhost:3003`、設定は [.env.example](.env.example) を参照してください。
+認証・課金を試す場合はFirebase・Stripeの設定も必要です。ローカルのFirebase認証ファイルは `FIREBASE_SERVICE_ACCOUNT` で指定します。
 
-## API
+`npm run build` でビルドし、`npm start` でビルド済みAPIを起動します。
 
-- `GET /health`
-- `GET /api/models`
-- `POST /api/grade-work`
-- `POST /api/create-checkout-session`
-- `POST /api/create-portal-session`
-- `POST /api/webhooks/stripe`
+## 主なAPI
 
-`POST /api/grade-work` は `croppedImageData` に、左=A面（見本）、右=B面（模写）を含む1枚のPNG/JPEG/WEBP Data URLを受け取ります。
+- `GET /health`：稼働確認。
+- `POST /api/grade-work`：左にお手本、右に模写を含む画像の評価。
+- Stripe Checkout・Portal・Webhookによる課金連携。
 
-## Cloud Run
+## 公開・接続
 
-`server` ディレクトリをビルドコンテキストとして `Dockerfile` をデプロイします。Cloud Runには次の環境変数を設定してください。
+このディレクトリをビルドコンテキストとしてCloud Runへ公開します。手順は [CopiCopiのデプロイガイド](https://github.com/ThousandsOfTies/CopiCopi/blob/main/.agent/workflows/deployment.md) を参照してください。
+APIキー・決済キーはサーバー側に設定し、フロントとAPIには同じCopiCopi専用Firebaseプロジェクトを指定します。
 
-- `GEMINI_API_KEY`（可能ならSecret Managerから参照）
-- `ALLOWED_ORIGINS=https://thousandsofties.github.io`
-- `STRIPE_SECRET_KEY`（Secret Manager推奨）
-- `STRIPE_PRICE_ID`（CopiCopi Premiumの商品価格ID）
-- `STRIPE_WEBHOOK_SECRET`（Secret Manager推奨）
-
-決済APIではFirebase AuthenticationのIDトークンを検証し、Webhookで専用FirebaseプロジェクトのFirestore `users/{uid}` にある `isPremium`、`stripeCustomerId`、`stripeSubscriptionId` などを更新します。現行コードは旧構成の `entitlements.copicopi` を使用しません。Cloud RunのサービスアカウントにはFirebase AuthenticationとFirestoreへの権限が必要です。ローカルでは`FIREBASE_SERVICE_ACCOUNT`にサービスアカウントJSONのパスを設定してください。
-
-フロントエンド側には、アプリリポジトリ直下の`.env.example`に記載した`VITE_FIREBASE_*`を設定します。フロントとAPIは同じCopiCopi専用Firebaseプロジェクトを指定してください。TutoTuto/DoriDoriと同じFirebaseプロジェクトを指定すると、ユーザー直下のPremium状態を共有してしまうため、現在の独立構成では流用しません。Pagesのビルドはメタリポジトリの `COPICOPI_FIREBASE_*` Repository variablesを使用します。
-
-デプロイ後、GitHub ActionsのRepository variable `COPICOPI_API_URL` にCloud Run URLを設定し、フロントのビルド時に `VITE_API_URL` として渡します。
-
-`COPICOPI_API_URL` / `VITE_API_URL` は末尾に `/api` を付けないベースURLです。課金APIは実装されていますが、テスト決済の確認状況と本番モードへの切り替えは運用環境で別途確認してください。
+PagesのAPI接続先はRepository variable `COPICOPI_API_URL`、Firebase設定は `COPICOPI_FIREBASE_*` です。`VITE_API_URL` には末尾に `/api` のないベースURLを渡します。
+課金・独立化の作業履歴は [HANDOVER.md](https://github.com/ThousandsOfTies/CopiCopi/blob/main/HANDOVER.md) にあります。
