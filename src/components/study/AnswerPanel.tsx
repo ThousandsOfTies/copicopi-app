@@ -51,6 +51,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const [zoom, setZoom] = useState(1.0)
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const [isPanning, setIsPanning] = useState(false)
+  const [isPinching, setIsPinching] = useState(false)
   const [isCtrlPressed, setIsCtrlPressed] = useState(false)
   const panStartRef = useRef<{ x: number; y: number } | null>(null)
   const gestureRef = useRef<{ startZoom: number; startPan: { x: number; y: number }; startDist: number; startCenter: { x: number; y: number } } | null>(null)
@@ -287,7 +288,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
-          transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+          transition: isPanning || isPinching ? 'none' : 'transform 0.1s ease-out'
         }}
       >
         {/* Background layer: question image + writing area */}
@@ -316,6 +317,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
           onMouseLeave={() => { stopDraw(); stopPanning(); setEraserCursorPos(null) }}
           onTouchStart={(e) => {
             if (e.touches.length === 2) {
+              setIsPinching(true)
               const pair = touchPair(e.touches)
               gestureRef.current = { startZoom: zoom, startPan: panOffset, startDist: pair.distance, startCenter: pair.center }
             } else if (e.touches.length === 1) {
@@ -334,7 +336,8 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
               drawTo(t.clientX, t.clientY)
             }
           }}
-          onTouchEnd={() => { stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
+          onTouchEnd={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
+          onTouchCancel={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
         />
         {/* Eraser circle cursor */}
         {isEraserMode && eraserCursorPos && (

@@ -296,7 +296,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     return pane === 'A' ? paneARef : paneBRef
   }
 
-  const { handleOverlayTouchStart, handleOverlayTouchMove, handleOverlayTouchEnd } = useStudyOverlayTouch({
+  const { handleOverlayTouchStart, handleOverlayTouchMove, handleOverlayTouchEnd, handleOverlayTouchCancel } = useStudyOverlayTouch({
     containerRef, getTargetPane, getPane: pane => getTargetPaneRef(pane).current,
     cancelSelection: () => { isSelectingRef.current = false; selectionStartRef.current = null },
   })
@@ -1078,6 +1078,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             onTouchStart={handleTouchSelectionStart}
             onTouchMove={handleTouchSelectionMove}
             onTouchEnd={handleTouchSelectionEnd}
+            onTouchCancel={handleOverlayTouchCancel}
           >
             {selectionRect && (
               <div style={{
@@ -1219,6 +1220,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             onTouchEnd={(e) => {
               handleOverlayTouchEnd(e)
             }}
+            onTouchCancel={handleOverlayTouchCancel}
           />
         )}
 
