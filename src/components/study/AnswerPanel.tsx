@@ -1,5 +1,5 @@
 import { useAnswerWheel } from '@home-teacher/common/hooks/useAnswerWheel'
-import { pinchViewport, touchPair } from '@thousands-of-ties/drawing-common'
+import { pinchViewport, touchPair, useStrokeInput, drawStationaryStroke } from '@thousands-of-ties/drawing-common'
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { ICON_SVG } from '../../constants/icons'
 import { CanvasUndoHistory, drawAdditionalStrokeStyle, type StrokeStyle } from '@thousands-of-ties/drawing-common'
@@ -232,7 +232,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     ctx.lineTo(pos.x, pos.y)
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    ctx.stroke()
+    if (!drawStationaryStroke(ctx, [lastPosRef.current, pos], ctx.lineWidth)) ctx.stroke()
     lastPosRef.current = pos
   }
 
@@ -278,6 +278,17 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     panStartRef.current = null
   }
 
+  const strokeInput = useStrokeInput({
+    enabled: !isCtrlPressed,
+    onStart: point => startDraw(point.clientX, point.clientY),
+    onMove: points => {
+      for (const point of points) drawTo(point.clientX, point.clientY)
+      const last = points[points.length - 1]
+      if (isEraserMode && last) setEraserCursorPos(getEraserCursorPos(last.clientX, last.clientY))
+    },
+    onEnd: () => { stopDraw(); setEraserCursorPos(null) },
+  })
+
   return (
     <div
       className="answer-panel-content"
@@ -299,46 +310,47 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
           ref={drawCanvasRef}
           className="answer-draw-canvas"
           style={{ cursor }}
-          onMouseDown={(e) => {
+          onPointerDown={(e) => {
+            if (e.pointerType === 'touch') return
             if (isCtrlPressed || e.button === 1) {
               startPanning(e.clientX, e.clientY)
-            } else {
-              startDraw(e.clientX, e.clientY)
+            } else if (e.button === 0) {
+              strokeInput.onPointerDown(e)
             }
           }}
-          onMouseMove={(e) => {
+          onPointerMove={(e) => {
+            if (e.pointerType === 'touch') return
             if (isPanning) {
               doPanning(e.clientX, e.clientY)
             } else {
               if (isEraserMode) setEraserCursorPos(getEraserCursorPos(e.clientX, e.clientY))
-              if (e.buttons === 1) drawTo(e.clientX, e.clientY)
+              strokeInput.onPointerMove(e)
             }
           }}
-          onMouseUp={() => { stopDraw(); stopPanning() }}
-          onMouseLeave={() => { stopDraw(); stopPanning(); setEraserCursorPos(null) }}
+          onPointerUp={(e) => { strokeInput.onPointerUp(e); stopPanning() }}
+          onPointerCancel={(e) => { strokeInput.onPointerCancel(e); stopPanning() }}
+          onLostPointerCapture={strokeInput.onLostPointerCapture}
+          onPointerLeave={() => { setEraserCursorPos(null) }}
           onTouchStart={(e) => {
+            if (strokeInput.onTouchStart(e)) return
             if (e.touches.length === 2) {
               setIsPinching(true)
+              strokeInput.cancel()
               const pair = touchPair(e.touches)
               gestureRef.current = { startZoom: zoom, startPan: panOffset, startDist: pair.distance, startCenter: pair.center }
-            } else if (e.touches.length === 1) {
-              const t = e.touches[0]; startDraw(t.clientX, t.clientY)
             }
           }}
           onTouchMove={(e) => {
+            if (strokeInput.onTouchMove(e)) return
             if (e.touches.length === 2 && gestureRef.current) {
               const bounds = containerRef.current?.getBoundingClientRect()
               if (!bounds) return
               const view = pinchViewport(gestureRef.current, touchPair(e.touches), bounds, 0.2)
               if (view) { setZoom(view.zoom); setPanOffset(view.panOffset) }
-            } else if (e.touches.length === 1) {
-              const t = e.touches[0]
-              if (isEraserMode) setEraserCursorPos(getEraserCursorPos(t.clientX, t.clientY))
-              drawTo(t.clientX, t.clientY)
             }
           }}
-          onTouchEnd={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
-          onTouchCancel={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
+          onTouchEnd={(e) => { if (strokeInput.onTouchEnd(e)) return; setIsPinching(false); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
+          onTouchCancel={(e) => { if (strokeInput.onTouchCancel(e)) return; setIsPinching(false); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
         />
       </div>
       {/* Eraser circle cursor */}
