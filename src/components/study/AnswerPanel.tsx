@@ -245,11 +245,12 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   }
 
   const getEraserCursorPos = (clientX: number, clientY: number) => {
-    const canvas = drawCanvasRef.current!
-    const rect = canvas.getBoundingClientRect()
+    const container = containerRef.current
+    if (!container) return null
+    const rect = container.getBoundingClientRect()
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+      x: clientX - rect.left - container.clientLeft + container.scrollLeft,
+      y: clientY - rect.top - container.clientTop + container.scrollTop,
       diameter: eraserSize,
     }
   }
@@ -281,7 +282,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     <div
       className="answer-panel-content"
       ref={containerRef}
-      style={{ overflow: 'hidden', touchAction: 'none' }}
+      style={{ position: 'relative', overflow: 'hidden', touchAction: 'none' }}
     >
       <div
         className="answer-canvas-stack"
@@ -339,25 +340,25 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
           onTouchEnd={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
           onTouchCancel={() => { setIsPinching(false); stopDraw(); stopPanning(); setEraserCursorPos(null); gestureRef.current = null }}
         />
-        {/* Eraser circle cursor */}
-        {isEraserMode && eraserCursorPos && (
-          <div
-            style={{
-              position: 'absolute',
-              left: `${eraserCursorPos.x}px`,
-              top: `${eraserCursorPos.y}px`,
-              width: `${eraserSize}px`,
-              height: `${eraserSize}px`,
-              borderRadius: '50%',
-              backgroundColor: 'rgba(255, 100, 100, 0.2)',
-              border: '2px solid rgba(255, 100, 100, 0.6)',
-              pointerEvents: 'none',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 9999,
-            }}
-          />
-        )}
       </div>
+      {/* Eraser circle cursor */}
+      {isEraserMode && eraserCursorPos && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${eraserCursorPos.x}px`,
+            top: `${eraserCursorPos.y}px`,
+            width: `${eraserSize}px`,
+            height: `${eraserSize}px`,
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255, 100, 100, 0.2)',
+            border: '2px solid rgba(255, 100, 100, 0.6)',
+            pointerEvents: 'none',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999,
+          }}
+        />
+      )}
     </div>
   )
 })
