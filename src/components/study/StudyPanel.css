@@ -419,7 +419,8 @@
 }
 
 /* Keep the paper edge visible without changing the canvas coordinate size. */
-.pane-b .drawing-canvas:not([aria-hidden='true']) {
+.pane-b .drawing-canvas:not([aria-hidden='true']),
+.pane-b .drawing-paper {
   background-color: #fff;
   box-shadow:
     inset 0 0 0 2px rgba(67, 82, 73, 0.58),
