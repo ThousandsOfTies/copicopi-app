@@ -1,5 +1,5 @@
 import { useAnswerWheel } from '@home-teacher/common/hooks/useAnswerWheel'
-import { pinchViewport, touchPair, useStrokeInput, drawStationaryStroke } from '@thousands-of-ties/drawing-common'
+import { pinchViewport, touchPair, useStrokeInput, drawStationaryStroke, resizeCanvasForDisplay, getCanvasLogicalSize } from '@thousands-of-ties/drawing-common'
 import { useRef, useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { ICON_SVG } from '../../constants/icons'
 import { CanvasUndoHistory, drawAdditionalStrokeStyle, type StrokeStyle } from '@thousands-of-ties/drawing-common'
@@ -84,10 +84,8 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     const h = TOP_MARGIN + imgH + writingH + BOTTOM_MARGIN
     const imageLeft = Math.round((w - imgW) / 2)  // 常に水平中央
 
-    bgCanvas.width = w
-    bgCanvas.height = h
-    drawCanvas.width = w
-    drawCanvas.height = h
+    resizeCanvasForDisplay(bgCanvas, w, h)
+    resizeCanvasForDisplay(drawCanvas, w, h)
     console.log('[AnswerPanel] canvas size:', { w, h, isLandscape })
 
     const ctx = bgCanvas.getContext('2d')!
@@ -155,7 +153,8 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     if (!drawCanvas) return
     saveSnapshot()
     const ctx = drawCanvas.getContext('2d')!
-    ctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height)
+    const logicalSize = getCanvasLogicalSize(drawCanvas)
+    ctx.clearRect(0, 0, logicalSize.width, logicalSize.height)
   }
 
   // Composite bg + draw canvases into a single PNG
@@ -165,11 +164,12 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     if (!bgCanvas || !drawCanvas) return null
 
     const out = document.createElement('canvas')
-    out.width = bgCanvas.width
-    out.height = bgCanvas.height
+    const logicalSize = getCanvasLogicalSize(bgCanvas)
+    out.width = logicalSize.width
+    out.height = logicalSize.height
     const ctx = out.getContext('2d')!
-    ctx.drawImage(bgCanvas, 0, 0)
-    ctx.drawImage(drawCanvas, 0, 0)
+    ctx.drawImage(bgCanvas, 0, 0, out.width, out.height)
+    ctx.drawImage(drawCanvas, 0, 0, out.width, out.height)
     return out.toDataURL('image/png')
   }
 
@@ -183,8 +183,9 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
   const getPos = (clientX: number, clientY: number): { x: number; y: number } => {
     const canvas = drawCanvasRef.current!
     const rect = canvas.getBoundingClientRect()
-    const scaleX = canvas.width / rect.width
-    const scaleY = canvas.height / rect.height
+    const logicalSize = getCanvasLogicalSize(canvas)
+    const scaleX = logicalSize.width / rect.width
+    const scaleY = logicalSize.height / rect.height
     return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY }
   }
 
@@ -200,7 +201,7 @@ const AnswerPanel = forwardRef<AnswerPanelHandle, AnswerPanelProps>(({
     const ctx = canvas.getContext('2d')!
     const pos = getPos(clientX, clientY)
     const rect = canvas.getBoundingClientRect()
-    const scale = canvas.width / rect.width
+    const scale = getCanvasLogicalSize(canvas).width / rect.width
 
     if (isEraserMode) {
       ctx.globalCompositeOperation = 'destination-out'
