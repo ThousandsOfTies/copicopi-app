@@ -1,3 +1,4 @@
+const { studySelectionAdapters } = require('../../home-teacher-common/tests/helpers/studySelectionHarness.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -23,7 +24,7 @@ function handler(name, adapters) {
     return vm.runInNewContext(code + '\nrun', {
         appMessages: require('../src/i18n/locales/ja.json'),
         commonMessages: require('../../home-teacher-common/src/i18n/locales/ja.json'),
-        ...adapters,
+        ...studySelectionAdapters(adapters), ...adapters,
     });
 }
 

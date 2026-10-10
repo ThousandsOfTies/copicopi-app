@@ -54,6 +54,7 @@ function App() {
     <div className="app">
       {currentView === 'admin' ? (
         <AdminPanel
+          billingVariant="copicopi"
           key={`admin-${settingsVersion}`}
           onSelectPDF={handleSelectPDF}
           onEditPDF={handleEditPDF}
