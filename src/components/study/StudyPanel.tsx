@@ -1006,6 +1006,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             pdfRecord={pdfRecord}
             pdfDoc={pdfDoc}
             pageNum={pageB}
+            preloadPageNum={isSplitView ? undefined : pageA}
             hidePdfBackground
             blankCanvasSize={A4_LANDSCAPE_CANVAS_SIZE}
             tool={isEraserMode ? 'eraser' : (isDrawingMode ? 'pen' : 'none')}
