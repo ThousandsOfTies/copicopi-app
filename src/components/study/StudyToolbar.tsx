@@ -1,4 +1,5 @@
 import { StudyToolbarNavigation, type BreadcrumbItem } from '@home-teacher/common/components/study/StudyToolbarNavigation'
+import type { StudyViewControlsProps } from '@home-teacher/common/components/study/StudyViewControls'
 import { StudyEraserTool, StudyTextTool, type TextDirection } from '@home-teacher/common/components/study/StudyToolSettings'
 import { useStudyToolPopups } from '@home-teacher/common/hooks/useStudyToolPopups'
 export type { BreadcrumbItem } from '@home-teacher/common/components/study/StudyToolbarNavigation'
@@ -18,6 +19,7 @@ export type TeacherMode = 'kind' | 'balanced' | 'strict';
 interface StudyToolbarProps {
     onBack?: () => void;
     breadcrumbs?: BreadcrumbItem[];
+    viewControls: StudyViewControlsProps;
     isSplitView: boolean;
 
     // Grading
@@ -70,6 +72,7 @@ interface StudyToolbarProps {
 export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     onBack,
     breadcrumbs,
+    viewControls,
     isSplitView,
     isGrading,
     startGrading,
@@ -171,6 +174,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
             <StudyToolbarNavigation
                 onBack={onBack}
                 breadcrumbs={breadcrumbs}
+                viewControls={viewControls}
                 labels={{ home: appT('toolbar.home') }}
             />
 
