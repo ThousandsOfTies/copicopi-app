@@ -1,4 +1,5 @@
-import { StudyToolbarNavigation, type BreadcrumbItem } from '@home-teacher/common/components/study/StudyToolbarNavigation'
+import { StudyToolbarFrame } from '@home-teacher/common/components/study/StudyToolbarFrame'
+import type { BreadcrumbItem } from '@home-teacher/common/components/study/StudyToolbarNavigation'
 import type { StudyViewControlsProps } from '@home-teacher/common/components/study/StudyViewControls'
 import { StudyEraserTool, StudyTextTool, type TextDirection } from '@home-teacher/common/components/study/StudyToolSettings'
 import { useStudyToolPopups } from '@home-teacher/common/hooks/useStudyToolPopups'
@@ -20,7 +21,6 @@ interface StudyToolbarProps {
     onBack?: () => void;
     breadcrumbs?: BreadcrumbItem[];
     viewControls: StudyViewControlsProps;
-    isSplitView: boolean;
 
     // Grading
     isGrading: boolean;
@@ -73,7 +73,6 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     onBack,
     breadcrumbs,
     viewControls,
-    isSplitView,
     isGrading,
     startGrading,
     showTeacherGrade,
@@ -170,217 +169,212 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     });
 
     return (
-        <div className="toolbar">
-            <StudyToolbarNavigation
-                onBack={onBack}
-                breadcrumbs={breadcrumbs}
-                viewControls={viewControls}
-                labels={{ home: appT('toolbar.home') }}
-            />
+        <StudyToolbarFrame
+            onBack={onBack}
+            breadcrumbs={breadcrumbs}
+            viewControls={viewControls}
+            homeLabel={appT('toolbar.home')}
+        >
 
-            {/* 右寄せコンテナ */}
-            <div className="toolbar-tools">
+            <>
+                <div className="divider"></div>
 
-                <>
-                    <div className="divider"></div>
+                {/* 描画ツール */}
+                <div style={{ position: 'relative' }}>
+                    <button
+                        onClick={handlePenClick}
+                        className={isDrawingMode ? 'active' : ''}
+                        title={isDrawingMode ? appT('tools.penSettings', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') }) : appT('toolbar.penOff')}
+                        aria-label={appT('tools.penLabel', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') })}
+                    >
+                        <span className={`pen-toolbar-icon ${brushType}`}>{activePenIcon}</span>
+                    </button>
 
-                    {/* 描画ツール */}
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            onClick={handlePenClick}
-                            className={isDrawingMode ? 'active' : ''}
-                            title={isDrawingMode ? appT('tools.penSettings', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') }) : appT('toolbar.penOff')}
-                            aria-label={appT('tools.penLabel', { style: strokeStyleLabel, texture: brushType === 'solid' ? appT('tools.solid') : appT('tools.translucent') })}
-                        >
-                            <span className={`pen-toolbar-icon ${brushType}`}>{activePenIcon}</span>
-                        </button>
-
-                        {/* ペン設定ポップアップ */}
-                        {isDrawingMode && showPenPopup && (
-                            <div className="tool-popup pen-settings-popup">
-                                <div className="popup-row">
-                                    <label className="popup-icon-label" title={appT('tools.color')} aria-label={appT('tools.color')}><BiPalette size={21} /></label>
-                                    <input
-                                        type="color"
-                                        aria-label={appT('tools.selectColor')}
-                                        value={penColor}
-                                        onChange={(e) => setPenColor(e.target.value)}
-                                        className="pen-color-picker"
+                    {/* ペン設定ポップアップ */}
+                    {isDrawingMode && showPenPopup && (
+                        <div className="tool-popup pen-settings-popup">
+                            <div className="popup-row">
+                                <label className="popup-icon-label" title={appT('tools.color')} aria-label={appT('tools.color')}><BiPalette size={21} /></label>
+                                <input
+                                    type="color"
+                                    aria-label={appT('tools.selectColor')}
+                                    value={penColor}
+                                    onChange={(e) => setPenColor(e.target.value)}
+                                    className="pen-color-picker"
+                                />
+                            </div>
+                            <div className="color-preset-grid">
+                                {colorPresets.map((color) => (
+                                    <button
+                                        key={color}
+                                        type="button"
+                                        className="color-swatch"
+                                        aria-label={appT('tools.colorPreset', { color })}
+                                        title={color}
+                                        onClick={() => setPenColor(color)}
+                                        style={{
+                                            background: color, border: penColor === color ? '2px solid #111' : '1px solid #d1d5db',
+                                            boxShadow: penColor === color ? '0 0 0 2px white' : 'none'
+                                        }}
                                     />
-                                </div>
-                                <div className="color-preset-grid">
-                                    {colorPresets.map((color) => (
-                                        <button
-                                            key={color}
-                                            type="button"
-                                            className="color-swatch"
-                                            aria-label={appT('tools.colorPreset', { color })}
-                                            title={color}
-                                            onClick={() => setPenColor(color)}
-                                            style={{
-                                                background: color, border: penColor === color ? '2px solid #111' : '1px solid #d1d5db',
-                                                boxShadow: penColor === color ? '0 0 0 2px white' : 'none'
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                                <div className="popup-row">
-                                    <label className="popup-icon-label" title={appT('tools.texture')} aria-label={appT('tools.texture')}><FiDroplet size={19} /></label>
-                                    <div className="pen-option-group">
-                                        <button type="button" aria-label={appT('tools.solid')} title={appT('tools.solidHint')} className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} style={{ color: penColor, opacity: 1 }} /></button>
-                                        <button type="button" aria-label={appT('tools.watercolor')} title={appT('tools.watercolorHint')} className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} style={{ color: penColor, opacity: Math.max(watercolorOpacity, 0.32) }} /></button>
-                                    </div>
-                                </div>
-                                <div className="popup-row">
-                                    <label className="popup-icon-label" title={appT('tools.strokeStyle')} aria-label={appT('tools.strokeStyle')}><BiBrush size={21} /></label>
-                                    <div className="pen-option-group">
-                                        <button type="button" aria-label={appT('tools.pencil')} title={appT('tools.pencil')} className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label={appT('tools.marker')} title={appT('tools.marker')} className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label={appT('tools.brush')} title={appT('tools.brushHint')} className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label={appT('tools.calligraphy')} title={appT('tools.calligraphyHint')} className={strokeStyle === 'calligraphy' ? 'active' : ''} onClick={() => setStrokeStyle('calligraphy')}><BiPen size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                        <button type="button" aria-label={appT('tools.crayon')} title={appT('tools.crayonHint')} className={strokeStyle === 'crayon' ? 'active' : ''} onClick={() => setStrokeStyle('crayon')}><BiPaint size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
-                                    </div>
-                                </div>
-                                <p className="pen-setting-hint">
-                                    {appT('tools.sliderHint')}</p>
+                                ))}
                             </div>
-                        )}
-                    </div>
-
-                    <StudyEraserTool
-                        active={isEraserMode}
-                        onClick={handleEraserClick}
-                        title={appT(isEraserMode ? 'toolbar.eraserOn' : 'toolbar.eraserOff')}
-                    />
-                    <StudyTextTool
-                        active={isTextMode}
-                        popupVisible={showTextPopup}
-                        onClick={handleTextClick}
-                        title={appT(isTextMode ? 'toolbar.textOn' : 'toolbar.textOff')}
-                        fontSize={textFontSize}
-                        setFontSize={setTextFontSize}
-                        direction={textDirection}
-                        setDirection={setTextDirection}
-                        color={penColor}
-                        setColor={setPenColor}
-                        labels={{
-                            size: appT('toolbar.size'), direction: appT('toolbar.direction'),
-                            horizontal: appT('toolbar.horizontal'),
-                            verticalRight: appT('toolbar.verticalRight'), verticalLeft: appT('toolbar.verticalLeft'),
-                            color: appT('toolbar.colorLabel'),
-                        }}
-                        colorInputStyle={{ width: '40px', height: '30px', border: '1px solid #ccc', cursor: 'pointer' }}
-                    />
-
-                    {showLayerControls && (
-                        <button
-                            type="button"
-                            className={`layer-toolbar-button ${isLayerPanelOpen ? 'active' : ''}`}
-                            onClick={toggleLayerPanel}
-                            title={appT('layers.toolbarTitle', { name: activeLayerName })}
-                            aria-label={appT('layers.toolbarLabel', { name: activeLayerName })}
-                            aria-expanded={isLayerPanelOpen}
-                        >
-                            <FiLayers size={20} />
-                            <span className="layer-count-badge">{layerCount}</span>
-                        </button>
+                            <div className="popup-row">
+                                <label className="popup-icon-label" title={appT('tools.texture')} aria-label={appT('tools.texture')}><FiDroplet size={19} /></label>
+                                <div className="pen-option-group">
+                                    <button type="button" aria-label={appT('tools.solid')} title={appT('tools.solidHint')} className={brushType === 'solid' ? 'active' : ''} onClick={() => setBrushType('solid')}><BiSolidCircle size={20} style={{ color: penColor, opacity: 1 }} /></button>
+                                    <button type="button" aria-label={appT('tools.watercolor')} title={appT('tools.watercolorHint')} className={brushType === 'watercolor' ? 'active' : ''} onClick={() => setBrushType('watercolor')}><FiDroplet size={19} style={{ color: penColor, opacity: Math.max(watercolorOpacity, 0.32) }} /></button>
+                                </div>
+                            </div>
+                            <div className="popup-row">
+                                <label className="popup-icon-label" title={appT('tools.strokeStyle')} aria-label={appT('tools.strokeStyle')}><BiBrush size={21} /></label>
+                                <div className="pen-option-group">
+                                    <button type="button" aria-label={appT('tools.pencil')} title={appT('tools.pencil')} className={strokeStyle === 'pencil' ? 'active' : ''} onClick={() => setStrokeStyle('pencil')}><BiPencil size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                    <button type="button" aria-label={appT('tools.marker')} title={appT('tools.marker')} className={strokeStyle === 'marker' ? 'active' : ''} onClick={() => setStrokeStyle('marker')}><BiHighlight size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                    <button type="button" aria-label={appT('tools.brush')} title={appT('tools.brushHint')} className={strokeStyle === 'brush' ? 'active' : ''} onClick={() => setStrokeStyle('brush')}><BiBrush size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                    <button type="button" aria-label={appT('tools.calligraphy')} title={appT('tools.calligraphyHint')} className={strokeStyle === 'calligraphy' ? 'active' : ''} onClick={() => setStrokeStyle('calligraphy')}><BiPen size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                    <button type="button" aria-label={appT('tools.crayon')} title={appT('tools.crayonHint')} className={strokeStyle === 'crayon' ? 'active' : ''} onClick={() => setStrokeStyle('crayon')}><BiPaint size={20} style={{ color: penColor, opacity: penIconOpacity }} /></button>
+                                </div>
+                            </div>
+                            <p className="pen-setting-hint">
+                                {appT('tools.sliderHint')}</p>
+                        </div>
                     )}
+                </div>
 
-                    {/* Context-specific buttons */}
-                    {onGrade ? (
-                        /* Answer panel mode */
-                        <>
-                            <div className="divider"></div>
-                            {setSelectedModel && availableModels && (
-                                <select
-                                    value={selectedModel}
-                                    onChange={(e) => setSelectedModel(e.target.value)}
-                                >
-                                    <option value="default">{defaultModelName}</option>
-                                    {availableModels.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </select>
-                            )}
-                            <button
-                                onClick={onGrade}
-                                disabled={isGrading}
-                                className="btn-submit"
-                                title={t('copiStudy.toolbar.grade')}
-                                aria-label={t('copiStudy.toolbar.grade')}
-                                style={{
-                                    cursor: isGrading ? 'wait' : 'pointer',
-                                    opacity: isGrading ? 0.6 : 1,
-                                    transition: 'all 0.15s',
-                                }}
+                <StudyEraserTool
+                    active={isEraserMode}
+                    onClick={handleEraserClick}
+                    title={appT(isEraserMode ? 'toolbar.eraserOn' : 'toolbar.eraserOff')}
+                />
+                <StudyTextTool
+                    active={isTextMode}
+                    popupVisible={showTextPopup}
+                    onClick={handleTextClick}
+                    title={appT(isTextMode ? 'toolbar.textOn' : 'toolbar.textOff')}
+                    fontSize={textFontSize}
+                    setFontSize={setTextFontSize}
+                    direction={textDirection}
+                    setDirection={setTextDirection}
+                    color={penColor}
+                    setColor={setPenColor}
+                    labels={{
+                        size: appT('toolbar.size'), direction: appT('toolbar.direction'),
+                        horizontal: appT('toolbar.horizontal'),
+                        verticalRight: appT('toolbar.verticalRight'), verticalLeft: appT('toolbar.verticalLeft'),
+                        color: appT('toolbar.colorLabel'),
+                    }}
+                    colorInputStyle={{ width: '40px', height: '30px', border: '1px solid #ccc', cursor: 'pointer' }}
+                />
+
+                {showLayerControls && (
+                    <button
+                        type="button"
+                        className={`layer-toolbar-button ${isLayerPanelOpen ? 'active' : ''}`}
+                        onClick={toggleLayerPanel}
+                        title={appT('layers.toolbarTitle', { name: activeLayerName })}
+                        aria-label={appT('layers.toolbarLabel', { name: activeLayerName })}
+                        aria-expanded={isLayerPanelOpen}
+                    >
+                        <FiLayers size={20} />
+                        <span className="layer-count-badge">{layerCount}</span>
+                    </button>
+                )}
+
+                {/* Context-specific buttons */}
+                {onGrade ? (
+                    /* Answer panel mode */
+                    <>
+                        <div className="divider"></div>
+                        {setSelectedModel && availableModels && (
+                            <select
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
                             >
-                                {isGrading ? <FiLoader size={20} className="animate-spin" /> : <FiCheckCircle size={20} />}
+                                <option value="default">{defaultModelName}</option>
+                                {availableModels.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                ))}
+                            </select>
+                        )}
+                        <button
+                            onClick={onGrade}
+                            disabled={isGrading}
+                            className="btn-submit"
+                            title={t('copiStudy.toolbar.grade')}
+                            aria-label={t('copiStudy.toolbar.grade')}
+                            style={{
+                                cursor: isGrading ? 'wait' : 'pointer',
+                                opacity: isGrading ? 0.6 : 1,
+                                transition: 'all 0.15s',
+                            }}
+                        >
+                            {isGrading ? <FiLoader size={20} className="animate-spin" /> : <FiCheckCircle size={20} />}
+                        </button>
+                    </>
+                ) : showTeacherGrade ? (
+                    <>
+                        <div className="divider"></div>
+                        <div className="teacher-grade-control" ref={teacherMenuRef}>
+                            <button
+                                type="button"
+                                className={`teacher-grade-main teacher-${teacherMode}`}
+                                onClick={startGrading}
+                                disabled={isGrading || !viewControls.isSplitView}
+                                title={viewControls.isSplitView
+                                    ? t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })
+                                    : t('copiStudy.toolbar.splitRequired')}
+                                aria-label={t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })}
+                            >
+                                {isGrading ? <FiLoader className="animate-spin" /> : <FiCheckCircle aria-hidden="true" />}
+                                <span>{isGrading ? t('copiStudy.toolbar.checking') : selectedTeacher.label}</span>
                             </button>
-                        </>
-                    ) : showTeacherGrade ? (
-                        <>
-                            <div className="divider"></div>
-                            <div className="teacher-grade-control" ref={teacherMenuRef}>
-                                <button
-                                    type="button"
-                                    className={`teacher-grade-main teacher-${teacherMode}`}
-                                    onClick={startGrading}
-                                    disabled={isGrading || !isSplitView}
-                                    title={isSplitView
-                                        ? t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })
-                                        : t('copiStudy.toolbar.splitRequired')}
-                                    aria-label={t('copiStudy.toolbar.checkWithTeacher', { teacher: selectedTeacher.label })}
-                                >
-                                    {isGrading ? <FiLoader className="animate-spin" /> : <FiCheckCircle aria-hidden="true" />}
-                                    <span>{isGrading ? t('copiStudy.toolbar.checking') : selectedTeacher.label}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`teacher-grade-menu-button teacher-${teacherMode}`}
-                                    onClick={() => setShowTeacherMenu(previous => !previous)}
-                                    disabled={isGrading}
-                                    title={t('copiStudy.toolbar.chooseTeacher')}
-                                    aria-label={t('copiStudy.toolbar.chooseTeacher')}
-                                    aria-expanded={showTeacherMenu}
-                                >
-                                    <FiChevronDown />
-                                </button>
-                                {showTeacherMenu && (
-                                    <div className="teacher-grade-menu" role="menu">
-                                        {allTeacherOptions.map(option => {
-                                            const isEnabled = enabledTeacherModes.includes(option.mode);
-                                            return (
-                                            <button
-                                                key={option.mode}
-                                                type="button"
-                                                role="menuitemradio"
-                                                aria-checked={teacherMode === option.mode}
-                                                aria-disabled={!isEnabled}
-                                                disabled={!isEnabled}
-                                                className={`${teacherMode === option.mode ? 'selected' : ''} ${!isEnabled ? 'locked' : ''}`}
-                                                onClick={() => {
-                                                    if (!isEnabled) return;
-                                                    setTeacherMode(option.mode);
-                                                    setShowTeacherMenu(false);
-                                                }}
-                                            >
-                                                <span className={`teacher-option-icon teacher-${option.mode}`}>{option.icon}</span>
-                                                <span className="teacher-option-copy">
-                                                    <strong>{option.label}</strong>
-                                                    <small>{option.description}</small>
-                                                </span>
-                                                {teacherMode === option.mode
-                                                    ? <span className="teacher-option-check">✓</span>
-                                                    : !isEnabled && <span className="teacher-option-lock"><FiLock /></span>}
-                                            </button>
-                                        )})}
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    ) : null}
-                </>
-            </div>
-        </div>
+                            <button
+                                type="button"
+                                className={`teacher-grade-menu-button teacher-${teacherMode}`}
+                                onClick={() => setShowTeacherMenu(previous => !previous)}
+                                disabled={isGrading}
+                                title={t('copiStudy.toolbar.chooseTeacher')}
+                                aria-label={t('copiStudy.toolbar.chooseTeacher')}
+                                aria-expanded={showTeacherMenu}
+                            >
+                                <FiChevronDown />
+                            </button>
+                            {showTeacherMenu && (
+                                <div className="teacher-grade-menu" role="menu">
+                                    {allTeacherOptions.map(option => {
+                                        const isEnabled = enabledTeacherModes.includes(option.mode);
+                                        return (
+                                        <button
+                                            key={option.mode}
+                                            type="button"
+                                            role="menuitemradio"
+                                            aria-checked={teacherMode === option.mode}
+                                            aria-disabled={!isEnabled}
+                                            disabled={!isEnabled}
+                                            className={`${teacherMode === option.mode ? 'selected' : ''} ${!isEnabled ? 'locked' : ''}`}
+                                            onClick={() => {
+                                                if (!isEnabled) return;
+                                                setTeacherMode(option.mode);
+                                                setShowTeacherMenu(false);
+                                            }}
+                                        >
+                                            <span className={`teacher-option-icon teacher-${option.mode}`}>{option.icon}</span>
+                                            <span className="teacher-option-copy">
+                                                <strong>{option.label}</strong>
+                                                <small>{option.description}</small>
+                                            </span>
+                                            {teacherMode === option.mode
+                                                ? <span className="teacher-option-check">✓</span>
+                                                : !isEnabled && <span className="teacher-option-lock"><FiLock /></span>}
+                                        </button>
+                                    )})}
+                                </div>
+                            )}
+                        </div>
+                    </>
+                ) : null}
+            </>
+        </StudyToolbarFrame>
     );
 };

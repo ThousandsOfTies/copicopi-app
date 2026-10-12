@@ -1,3 +1,4 @@
+import { useStudyPageView } from '@home-teacher/common/hooks/useStudyPageView'
 import { StudyCanvasControls } from '@home-teacher/common/components/study/StudyCanvasControls'
 import { useRectangleSelection } from '@home-teacher/common/hooks/useRectangleSelection'
 import { captureStudyPDFSelection } from '@home-teacher/common/utils/studySelection'
@@ -99,10 +100,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   const { setTool, isDrawingMode, isEraserMode, isTextMode, isSelectionMode, isGradingCaptureMode } = useStudyToolMode('pen')
 
   // Layout State
-  // CopiCopi は見本（A面）と描画面（B面）を並べて使うため、左右開きを初期表示にする。
-  const [isSplitView, setIsSplitView] = useState(true)
   const [isPanesReversed, setIsPanesReversed] = useState(false)
-  const [activeTab, setActiveTab] = useState<'A' | 'B'>('A')
 
   // Split Ratio
   const { splitRatio, isResizing, handleResizeStart } = useStudySplitResize(SPLIT_RATIO_STORAGE_KEY,
@@ -114,6 +112,12 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
   // Page State
   const { pageA, pageB, pdfDoc, isLoading, pdfError,
     handlePageAChange, handlePageBChange, setRetryCount } = useStudyPDFPages(pdfRecord, pdfId)
+
+  // Start with the reference and drawing panes side by side; swapping keeps their page identities.
+  const { isSplitView, activeTab, toggleActiveTab, toggleSplitView } = useStudyPageView({
+    initialView: { mode: 'split', activeTab: 'A' },
+    onSwapPanes: () => setIsPanesReversed(previous => !previous),
+  })
 
   // Grading State (Additional)
   const [gradingError, setGradingError] = useState<string | null>(null)
@@ -792,20 +796,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
     })
   }
 
-  // ステータスメッセージ
-
-  // 分割表示の切り替え / A面B面の物理位置の入れ替え
-  const toggleSplitView = () => {
-    if (isSplitView) {
-      // 既にスプリット表示中なら左右の位置だけを入れ替える。
-      // A/Bのページ番号やB面の描画データは変更しない。
-      setIsPanesReversed(previous => !previous)
-    } else {
-      // スプリット表示をオンにする
-      setIsSplitView(true)
-    }
-  }
-
   // Ctrl+Z Undo - 選択中レイヤーの最後の描画を削除
   const handleUndo = () => {
     const activePage = pageB
@@ -1253,13 +1243,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             isSplitView,
             toggleSplitView,
             activeTab,
-            toggleActiveTab: () => {
-              if (isSplitView) {
-                setIsSplitView(false)
-              } else {
-                setActiveTab(prev => prev === 'A' ? 'B' : 'A')
-              }
-            },
+            toggleActiveTab,
           }}
           breadcrumbs={panelStack.map((panel, i) => ({
             label: getPanelLabel(panel),
@@ -1267,7 +1251,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             onClick: () => setActivePanelIndex(i),
             isCurrent: i === activePanelIndex
           }))}
-          isSplitView={isSplitView}
           isGrading={isGrading}
           startGrading={startGrading}
           showTeacherGrade={activePanel?.type === 'pdf'}
