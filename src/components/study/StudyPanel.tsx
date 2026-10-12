@@ -1,3 +1,4 @@
+import { StudyCanvasControls } from '@home-teacher/common/components/study/StudyCanvasControls'
 import { useRectangleSelection } from '@home-teacher/common/hooks/useRectangleSelection'
 import { captureStudyPDFSelection } from '@home-teacher/common/utils/studySelection'
 import { useStudyToolMode } from '@home-teacher/common/hooks/useStudyToolMode'
@@ -51,7 +52,6 @@ interface StudyPanelProps {
 }
 
 const SPLIT_RATIO_STORAGE_KEY = 'copicopi.splitRatio'
-const ERASER_SIZE_OPTIONS = [1, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const
 // PDF points (72 dpi). A3 landscape has the same sqrt(2):1 aspect ratio and
 // therefore the same on-screen proportions when fitted to the pane.
 const A4_LANDSCAPE_CANVAS_SIZE = { width: 841.89, height: 595.28 }
@@ -1131,64 +1131,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         })}
       </div>
 
-      {(isDrawingMode || isEraserMode) && !isSelectionMode && (
-        <aside className={`brush-control-rail${isEraserMode ? ' is-eraser' : ''}`} aria-label={isEraserMode ? appT('tools.eraserSize') : appT('tools.penSliders')}>
-          {isEraserMode ? (
-            <label className="brush-vertical-control eraser-vertical-control" title={appT('tools.eraserValue', { size: eraserSize })}>
-                <input
-                  type="range"
-                  min="0"
-                  max={ERASER_SIZE_OPTIONS.length - 1}
-                  step="1"
-                  value={Math.max(0, ERASER_SIZE_OPTIONS.indexOf(eraserSize as typeof ERASER_SIZE_OPTIONS[number]))}
-                  aria-label={appT('tools.eraserSize')}
-                  aria-valuetext={`${eraserSize}px`}
-                  onChange={(event) => setEraserSize(ERASER_SIZE_OPTIONS[Number(event.target.value)])}
-              />
-              <output>{eraserSize}</output>
-            </label>
-          ) : (
-            <>
-              <label className="brush-vertical-control" title={appT('tools.widthValue', { size: penSize })}>
-                <span className="brush-control-preview brush-size-preview" style={{ width: `${Math.min(18, 5 + penSize * 0.13)}px`, height: `${Math.min(18, 5 + penSize * 0.13)}px` }} />
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  step="1"
-                  value={penSize}
-                  aria-label={appT('tools.width')}
-                  aria-valuetext={`${penSize}px`}
-                  onChange={(event) => setPenSize(Number(event.target.value))}
-                />
-                <output>{penSize}</output>
-              </label>
-              <label className="brush-vertical-control" title={appT('tools.opacityValue', { value: brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100) })}>
-                <FiDroplet className="brush-opacity-icon" aria-hidden="true" />
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  value={brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}
-                  aria-label={appT('tools.opacity')}
-                  aria-valuetext={`${brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}%`}
-                  onChange={(event) => {
-                    const opacity = Number(event.target.value) / 100
-                    if (opacity >= 1) {
-                      setBrushType('solid')
-                    } else {
-                      setWatercolorOpacity(opacity)
-                      setBrushType('watercolor')
-                    }
-                  }}
-                />
-                <output>{brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100)}</output>
-              </label>
-            </>
-          )}
-        </aside>
-      )}
-
       {showLayerPanel && (isSplitView || activeTab === 'B') && (
         <aside className={`drawing-layer-panel ${isPanesReversed ? 'on-left' : 'on-right'}`} aria-label={appT('layers.title')}>
           <header className="drawing-layer-header">
@@ -1312,17 +1254,7 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
             onClick: () => setActivePanelIndex(i),
             isCurrent: i === activePanelIndex
           }))}
-          pageViewControlsEnabled={activePanel?.type === 'pdf'}
           isSplitView={isSplitView}
-          toggleSplitView={toggleSplitView}
-          activeTab={activeTab}
-          toggleActiveTab={() => {
-            if (isSplitView) {
-              setIsSplitView(false)
-            } else {
-              setActiveTab(prev => prev === 'A' ? 'B' : 'A')
-            }
-          }}
           isGrading={isGrading}
           startGrading={startGrading}
           showTeacherGrade={activePanel?.type === 'pdf'}
@@ -1339,8 +1271,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           toggleDrawingMode={toggleDrawingMode}
           penColor={penColor}
           setPenColor={setPenColor}
-          penSize={penSize}
-          setPenSize={setPenSize}
           brushType={brushType}
           setBrushType={setBrushType}
           watercolorOpacity={watercolorOpacity}
@@ -1349,8 +1279,6 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
           setStrokeStyle={setStrokeStyle}
           isEraserMode={isEraserMode}
           toggleEraserMode={toggleEraserMode}
-          eraserSize={eraserSize}
-          setEraserSize={setEraserSize}
           showLayerControls={activePanel?.type === 'pdf' && (isSplitView || activeTab === 'B')}
           isLayerPanelOpen={showLayerPanel}
           toggleLayerPanel={() => setShowLayerPanel(previous => !previous)}
@@ -1364,6 +1292,35 @@ const StudyPanel = ({ pdfRecord, pdfId, onBack }: StudyPanelProps) => {
         />
 
         <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+          <StudyCanvasControls
+            pageViewControlsEnabled={activePanel?.type === 'pdf'}
+            isSplitView={isSplitView}
+            toggleSplitView={toggleSplitView}
+            activeTab={activeTab}
+            toggleActiveTab={() => {
+              if (isSplitView) {
+                setIsSplitView(false)
+              } else {
+                setActiveTab(prev => prev === 'A' ? 'B' : 'A')
+              }
+            }}
+            tool={activePanel?.type === 'grading' ? null : isEraserMode ? 'eraser' : isDrawingMode ? 'pen' : null}
+            penSize={penSize}
+            setPenSize={setPenSize}
+            eraserSize={eraserSize}
+            setEraserSize={setEraserSize}
+            opacity={activePanel?.type === 'pdf' ? {
+              value: brushType === 'solid' ? 100 : Math.round(watercolorOpacity * 100),
+              onChange: value => {
+                if (value >= 100) {
+                  setBrushType('solid')
+                } else {
+                  setWatercolorOpacity(value / 100)
+                  setBrushType('watercolor')
+                }
+              },
+            } : undefined}
+          />
           {panelStack.map((panel, i) => (
             <div
               key={i}

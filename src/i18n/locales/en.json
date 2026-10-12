@@ -14,7 +14,7 @@
   "toolbar": {
     "home": "Back to home",
     "penOff": "Pen mode OFF",
-    "eraserOn": "Eraser mode ON (click for settings)",
+    "eraserOn": "Eraser mode ON",
     "eraserOff": "Eraser mode OFF",
     "textOn": "Text mode ON (click for settings)",
     "textOff": "Text mode OFF",
@@ -23,11 +23,7 @@
     "direction": "Direction:",
     "horizontal": "Horizontal (Z pattern)",
     "verticalRight": "Vertical, right to left (N pattern)",
-    "verticalLeft": "Vertical, left to right",
-    "split": "Split view",
-    "single": "Switch to single view",
-    "switchPane": "Switch A/B",
-    "swap": "Swap A/B"
+    "verticalLeft": "Vertical, left to right"
   },
   "tools": {
     "pencil": "Pencil",
@@ -50,14 +46,7 @@
     "sliderHint": "Adjust width and opacity using the sliders on the left.",
     "penSettings": "{{style}} · {{texture}} (click for settings)",
     "penLabel": "{{style}} · {{texture}}",
-    "colorPreset": "Choose {{color}}",
-    "eraserSize": "Eraser size",
-    "penSliders": "Pen width and opacity",
-    "width": "Pen width",
-    "opacity": "Pen opacity",
-    "eraserValue": "Eraser {{size}}px",
-    "widthValue": "Width {{size}}px",
-    "opacityValue": "Opacity {{value}}%"
+    "colorPreset": "Choose {{color}}"
   },
   "teachers": {
     "kind": "KIND",

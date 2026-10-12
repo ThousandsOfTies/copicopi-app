@@ -18,11 +18,7 @@ export type TeacherMode = 'kind' | 'balanced' | 'strict';
 interface StudyToolbarProps {
     onBack?: () => void;
     breadcrumbs?: BreadcrumbItem[];
-    pageViewControlsEnabled: boolean;
     isSplitView: boolean;
-    toggleSplitView: () => void;
-    activeTab: 'A' | 'B';
-    toggleActiveTab: () => void;
 
     // Grading
     isGrading: boolean;
@@ -45,8 +41,6 @@ interface StudyToolbarProps {
     toggleDrawingMode: () => void;
     penColor: string;
     setPenColor: (color: string) => void;
-    penSize: number;
-    setPenSize: (size: number) => void;
     brushType: BrushType;
     setBrushType: (type: BrushType) => void;
     watercolorOpacity: number;
@@ -57,8 +51,6 @@ interface StudyToolbarProps {
     // Eraser Tool
     isEraserMode: boolean;
     toggleEraserMode: () => void;
-    eraserSize: number;
-    setEraserSize: (size: number) => void;
 
     // Layers
     showLayerControls: boolean;
@@ -78,11 +70,7 @@ interface StudyToolbarProps {
 export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     onBack,
     breadcrumbs,
-    pageViewControlsEnabled,
     isSplitView,
-    toggleSplitView,
-    activeTab,
-    toggleActiveTab,
     isGrading,
     startGrading,
     showTeacherGrade,
@@ -99,8 +87,6 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     toggleDrawingMode,
     penColor,
     setPenColor,
-    penSize,
-    setPenSize,
     brushType,
     setBrushType,
     watercolorOpacity,
@@ -109,8 +95,6 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     setStrokeStyle,
     isEraserMode,
     toggleEraserMode,
-    eraserSize,
-    setEraserSize,
     showLayerControls,
     isLayerPanelOpen,
     toggleLayerPanel,
@@ -174,7 +158,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
     }, [showTeacherMenu]);
 
     const {
-        showTextPopup, showPenPopup, showEraserPopup,
+        showTextPopup, showPenPopup,
         handleTextClick, handlePenClick, handleEraserClick,
     } = useStudyToolPopups({
         text: { active: isTextMode, toggle: toggleTextMode },
@@ -187,16 +171,7 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
             <StudyToolbarNavigation
                 onBack={onBack}
                 breadcrumbs={breadcrumbs}
-                pageViewControlsEnabled={pageViewControlsEnabled}
-                isSplitView={isSplitView}
-                toggleSplitView={toggleSplitView}
-                activeTab={activeTab}
-                toggleActiveTab={toggleActiveTab}
-                labels={{
-                    home: appT('toolbar.home'),
-                    switchPane: appT(isSplitView ? 'toolbar.single' : 'toolbar.switchPane'),
-                    splitView: appT(isSplitView ? 'toolbar.swap' : 'toolbar.split'),
-                }}
+                labels={{ home: appT('toolbar.home') }}
             />
 
             {/* 右寄せコンテナ */}
@@ -270,12 +245,8 @@ export const StudyToolbar: React.FC<StudyToolbarProps> = ({
 
                     <StudyEraserTool
                         active={isEraserMode}
-                        popupVisible={showEraserPopup}
                         onClick={handleEraserClick}
                         title={appT(isEraserMode ? 'toolbar.eraserOn' : 'toolbar.eraserOff')}
-                        size={eraserSize}
-                        setSize={setEraserSize}
-                        sizeLabel={appT('toolbar.size')}
                     />
                     <StudyTextTool
                         active={isTextMode}

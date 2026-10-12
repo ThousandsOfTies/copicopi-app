@@ -14,7 +14,7 @@
   "toolbar": {
     "home": "ホームに戻る",
     "penOff": "ペンモード OFF",
-    "eraserOn": "消しゴムモード ON（クリックで設定）",
+    "eraserOn": "消しゴムモード ON",
     "eraserOff": "消しゴムモード OFF",
     "textOn": "テキストモード ON（クリックで設定）",
     "textOff": "テキストモード OFF",
@@ -23,11 +23,7 @@
     "direction": "方向:",
     "horizontal": "横書き (Z型)",
     "verticalRight": "縦書き右始 (N型)",
-    "verticalLeft": "縦書き左始",
-    "split": "2画面表示 (Split View)",
-    "single": "シングルビューへ切替",
-    "switchPane": "A/B 切替",
-    "swap": "A/Bの位置を入れ替え"
+    "verticalLeft": "縦書き左始"
   },
   "tools": {
     "pencil": "えんぴつ",
@@ -50,14 +46,7 @@
     "sliderHint": "太さと濃さは画面左のスライダーで調整できます",
     "penSettings": "{{style}}・{{texture}}（クリックで設定）",
     "penLabel": "{{style}}、{{texture}}",
-    "colorPreset": "{{color}} を選択",
-    "eraserSize": "消しゴムの大きさ",
-    "penSliders": "ペンの太さと濃さ",
-    "width": "ペンの太さ",
-    "opacity": "ペンの濃さ",
-    "eraserValue": "消しゴム {{size}}px",
-    "widthValue": "太さ {{size}}px",
-    "opacityValue": "濃さ {{value}}%"
+    "colorPreset": "{{color}} を選択"
   },
   "teachers": {
     "kind": "KIND",
