@@ -26,6 +26,13 @@ npm run dev
 ## 公開・接続
 
 このディレクトリをビルドコンテキストとしてCloud Runへ公開します。手順は [CopiCopiのデプロイガイド](https://github.com/ThousandsOfTies/CopiCopi/blob/main/.agent/workflows/deployment.md) を参照してください。
+
+Google Cloud CLI 587.0.0以降で、変更をcommit・pushした後に `npm run deploy` を実行します。
+`cloudbuild.yaml` で `regular` のワーカーを使用してビルドし、成功したイメージのSHA256ダイジェストをCloud Runへ公開します。
+Docker BuildKitが対応しない `--network cloudbuild` を生成するソースデプロイは使用しません。
+既存サービスの環境変数・シークレット・認証・サービスアカウントを保持します。ビルドが失敗した場合は公開しません。
+Cloud Runを変更せずに互換性を確認する場合は `npm run deploy -- --build-only` を使います。
+`.gcloudignore` の許可リストで `.env`、認証ファイル、フロント資産をアップロード対象から除外します。
 APIキー・決済キーはサーバー側に設定し、フロントとAPIには同じCopiCopi専用Firebaseプロジェクトを指定します。
 
 PagesのAPI接続先はRepository variable `COPICOPI_API_URL`、Firebase設定は `COPICOPI_FIREBASE_*` です。`VITE_API_URL` には末尾に `/api` のないベースURLを渡します。

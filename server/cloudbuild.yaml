@@ -1,0 +1,9 @@
+steps:
+  - id: build-runtime-image
+    name: gcr.io/cloud-builders/docker
+    args: ['build', '--no-cache', '-t', '${_IMAGE}', '--label', 'google.build_id=$BUILD_ID', '.']
+images: ['${_IMAGE}']
+options:
+  workerRelease: regular
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

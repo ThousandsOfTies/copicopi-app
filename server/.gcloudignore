@@ -1,0 +1,9 @@
+# Upload only the API runtime sources.
+**
+!.gcloudignore
+!Dockerfile
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!src/**
