@@ -37,3 +37,16 @@ hometeacher-api-firebase-adminsdk-fbsvc-69abc81b69.json
 firebase-adminsdk*.json
 firebase-adminsdk*.json:Zone.Identifier
 *.json.backup
+
+# Local AI-agent worktrees and machine-specific settings
+/.claude/worktrees/
+/.claude/settings.local.json
+
+# One-off debugging and repository inspection output
+/gitdiff.txt
+/log.txt
+/reflog_htc.txt
+/reflog_tutotuto.txt
+/stash_patch.txt
+/tree.txt
+/dev_app.txt
