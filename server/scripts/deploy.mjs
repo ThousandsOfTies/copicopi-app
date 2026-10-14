@@ -29,10 +29,42 @@ if (build.status !== 'SUCCESS' || build.options?.workerRelease !== 'regular' || 
 }
 console.log(`Built ${imageBase}@${digest} with regular workers (build ${build.id})`)
 if (buildOnly) process.exit(0)
+const deployFormat = 'json(status.latestCreatedRevisionName,status.traffic)'
 const deployed = spawnSync('gcloud', [
   'run', 'deploy', 'copicopi-api', '--image', `${imageBase}@${digest}`,
   '--project', 'gen-lang-client-0809048670', '--region', 'asia-northeast1', '--platform', 'managed',
   '--update-labels', `source-repository=copicopi-app,git-sha=${commit}`, '--quiet',
-], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32', windowsHide: true })
+  // cmd.exe treats projection parentheses as shell syntax unless quoted.
+  process.platform === 'win32' ? `--format="${deployFormat}"` : `--format=${deployFormat}`,
+], { cwd: root, encoding: 'utf8', stdio: ['inherit', 'pipe', 'inherit'],
+  shell: process.platform === 'win32', windowsHide: true })
 if (deployed.error) throw deployed.error
-process.exit(deployed.status ?? 1)
+if (deployed.status !== 0) process.exit(deployed.status ?? 1)
+const service = JSON.parse(deployed.stdout)
+const revision = service.status?.latestCreatedRevisionName
+if (typeof revision !== 'string' || revision.length > 63
+  || !/^copicopi-api-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(revision)) {
+  throw new Error('Cloud Run did not return a valid created revision')
+}
+if (!Array.isArray(service.status?.traffic)) throw new Error('Cloud Run did not return traffic assignments')
+const tags = new Set()
+for (const target of service.status.traffic) {
+  if (!target || typeof target !== 'object') throw new Error('Invalid Cloud Run traffic assignment')
+  if (target.tag === undefined) continue
+  if (typeof target.tag !== 'string' || target.tag.length > 63
+    || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(target.tag)) {
+    throw new Error('Invalid Cloud Run traffic tag')
+  }
+  tags.add(target.tag)
+}
+// A service can remain pinned to an old revision after a successful deployment.
+// Move existing tag URLs too: zero-percent tagged revisions remain publicly reachable.
+const promoted = spawnSync('gcloud', [
+  'run', 'services', 'update-traffic', 'copicopi-api',
+  '--project', 'gen-lang-client-0809048670', '--region', 'asia-northeast1',
+  '--to-revisions', `${revision}=100`,
+  ...(tags.size ? ['--update-tags', [...tags].map(tag => `${tag}=${revision}`).join(',')] : []),
+  '--quiet',
+], { cwd: root, stdio: 'inherit', shell: process.platform === 'win32', windowsHide: true })
+if (promoted.error) throw promoted.error
+process.exit(promoted.status ?? 1)
